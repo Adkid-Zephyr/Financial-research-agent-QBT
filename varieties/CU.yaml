@@ -1,0 +1,18 @@
+code: CU
+name: 沪铜
+exchange: SHFE
+contracts:
+  - CU2605
+  - CU2606
+  - CU2607
+key_factors:
+  - 国内外精炼铜库存与注销仓单变化
+  - 冶炼加工费与矿端扰动
+  - 电网投资与制造业终端需求
+  - LME铜与沪铜内外盘比价
+news_keywords:
+  - [沪铜, 铜, LME铜, 冶炼加工费, 电网投资, 铜库存]
+data_sources:
+  - type: web_search
+  - type: mock
+prompt_template: industrial_materials_futures

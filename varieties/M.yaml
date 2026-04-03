@@ -1,0 +1,18 @@
+code: M
+name: 豆粕
+exchange: DCE
+contracts:
+  - M2605
+  - M2609
+  - M2701
+key_factors:
+  - 大豆到港节奏与压榨利润
+  - 生猪养殖利润与饲料需求
+  - 南美天气与美豆出口节奏
+  - 油厂开机率与豆粕库存
+news_keywords:
+  - [豆粕, 大豆, 压榨, 美豆, 南美天气, 饲料]
+data_sources:
+  - type: web_search
+  - type: mock
+prompt_template: default_futures

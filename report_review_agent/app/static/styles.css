@@ -1,0 +1,224 @@
+:root {
+  --bg: #f5efe2;
+  --panel: rgba(255, 252, 245, 0.92);
+  --ink: #1d2a33;
+  --muted: #5c6a72;
+  --accent: #8b3d2e;
+  --accent-soft: #efe0d7;
+  --line: rgba(29, 42, 51, 0.12);
+  --critical: #9d1c1c;
+  --major: #b96a10;
+  --minor: #466377;
+  --shadow: 0 18px 50px rgba(31, 34, 37, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Georgia", "Songti SC", serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(139, 61, 46, 0.16), transparent 36%),
+    radial-gradient(circle at bottom right, rgba(70, 99, 119, 0.2), transparent 32%),
+    var(--bg);
+}
+
+.shell {
+  width: min(960px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 40px 0 64px;
+}
+
+.hero {
+  padding: 12px 2px 20px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 1.05;
+}
+
+.lede {
+  max-width: 760px;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-top: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.upload-form {
+  display: grid;
+  gap: 18px;
+}
+
+.dropzone {
+  display: grid;
+  gap: 8px;
+  padding: 28px;
+  border: 1px dashed rgba(29, 42, 51, 0.28);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.74), rgba(239,224,215,0.82));
+  cursor: pointer;
+}
+
+.dropzone input {
+  width: 100%;
+}
+
+.dropzone-title {
+  font-size: 22px;
+}
+
+.dropzone-note,
+.muted,
+.status {
+  color: var(--muted);
+}
+
+button {
+  width: fit-content;
+  border: 0;
+  border-radius: 999px;
+  padding: 14px 22px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.hidden {
+  display: none;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.score-pill {
+  min-width: 132px;
+  text-align: center;
+  padding: 12px 16px;
+  border-radius: 999px;
+  background: #ece6dc;
+  font-weight: 700;
+}
+
+.score-pill[data-status="pass"] {
+  background: #dcefe3;
+}
+
+.score-pill[data-status="revise"] {
+  background: #f5e8ce;
+}
+
+.score-pill[data-status="fail"] {
+  background: #f6dbdb;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.summary-box,
+.detail-box,
+.finding {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.download-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--accent-soft);
+}
+
+.finding {
+  margin-top: 12px;
+}
+
+.finding-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #fff;
+}
+
+.badge[data-severity="critical"] {
+  background: var(--critical);
+}
+
+.badge[data-severity="major"] {
+  background: var(--major);
+}
+
+.badge[data-severity="minor"] {
+  background: var(--minor);
+}
+
+@media (max-width: 720px) {
+  .shell {
+    width: min(100vw - 20px, 960px);
+    padding-top: 24px;
+  }
+
+  .panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

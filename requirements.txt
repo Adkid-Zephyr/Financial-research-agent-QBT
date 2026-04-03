@@ -1,0 +1,12 @@
+anthropic>=0.40.0
+fastapi>=0.115.0
+langgraph>=0.2.0
+pydantic>=2.0.0
+psycopg[binary]>=3.1.0
+python-dotenv>=1.0.0
+PyYAML>=6.0.0
+reportlab>=4.0.0
+SQLAlchemy>=2.0.0
+urllib3<2
+uvicorn>=0.30.0
+websockets>=12.0

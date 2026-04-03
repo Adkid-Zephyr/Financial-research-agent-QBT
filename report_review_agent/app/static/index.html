@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>研报评审 Agent</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Report Review Agent</p>
+        <h1>上传研报，拿到客观评审与改进方案</h1>
+        <p class="lede">
+          支持 Markdown、TXT、PDF。系统会输出评分、问题清单、改进动作，并生成可下载的 Markdown / PDF 评审包。
+        </p>
+      </section>
+
+      <section class="panel">
+        <form id="upload-form" class="upload-form">
+          <label class="dropzone" for="file-input">
+            <input id="file-input" name="file" type="file" accept=".md,.txt,.pdf" required />
+            <span class="dropzone-title">选择一个研报文件</span>
+            <span class="dropzone-note">推荐上传 Markdown；PDF 需为可提取文本的电子版</span>
+          </label>
+          <button id="submit-btn" type="submit">开始评审</button>
+        </form>
+        <p id="status" class="status">等待上传</p>
+      </section>
+
+      <section id="result-card" class="panel hidden">
+        <div class="result-header">
+          <div>
+            <p class="muted">评审结果</p>
+            <h2 id="result-title">未生成</h2>
+          </div>
+          <div id="score-pill" class="score-pill">--</div>
+        </div>
+
+        <div class="summary-grid">
+          <article class="summary-box">
+            <h3>执行摘要</h3>
+            <p id="executive-summary"></p>
+          </article>
+          <article class="summary-box">
+            <h3>下载结果</h3>
+            <div id="downloads" class="downloads"></div>
+          </article>
+        </div>
+
+        <article class="detail-box">
+          <h3>优点</h3>
+          <ul id="strengths"></ul>
+        </article>
+
+        <article class="detail-box">
+          <h3>主要问题</h3>
+          <div id="findings"></div>
+        </article>
+
+        <article class="detail-box">
+          <h3>改进动作</h3>
+          <ol id="actions"></ol>
+        </article>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+  </html>

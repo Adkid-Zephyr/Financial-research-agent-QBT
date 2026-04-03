@@ -1,0 +1,18 @@
+code: CF
+name: 棉花
+exchange: CZCE
+contracts:
+  - CF2605
+  - CF2609
+  - CF2701
+key_factors:
+  - 新疆棉产量与收储政策
+  - 纺纱开机率与棉纱价差
+  - ICE棉花期货与USDA月度报告
+  - 进口配额发放节奏
+news_keywords:
+  - [棉花, 郑棉, 纺织, ICE, USDA, 新疆棉]
+data_sources:
+  - type: web_search
+  - type: mock
+prompt_template: default_futures

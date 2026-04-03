@@ -1,0 +1,16 @@
+.git
+.gitignore
+.pytest_cache
+.mypy_cache
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.venv-py39-backup/
+.tools/
+outputs/
+logs/
+memory/
+*.db
