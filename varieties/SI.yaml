@@ -1,0 +1,18 @@
+code: SI
+name: 工业硅
+exchange: GFEX
+contracts:
+  - SI2606
+  - SI2609
+  - SI2611
+key_factors:
+  - 西南西北产区开工与电价变化
+  - 多晶硅与有机硅下游开工节奏
+  - 工业硅社会库存与交割仓单变化
+  - 成本曲线与现货基差修复
+news_keywords:
+  - [工业硅, 多晶硅, 有机硅, 开工率, 仓单, 电价]
+data_sources:
+  - type: web_search
+  - type: mock
+prompt_template: industrial_materials_futures

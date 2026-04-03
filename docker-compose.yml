@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-futures_research}
+      POSTGRES_USER: ${POSTGRES_USER:-futures}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-futures_dev_password}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-futures} -d ${POSTGRES_DB:-futures_research}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["/bin/sh", "/app/deploy/app/start.sh"]
+    volumes:
+      - ./outputs:/app/outputs
+      - ./logs:/app/logs
+      - ./memory:/app/memory
+      - ./varieties:/app/varieties
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  postgres_data:

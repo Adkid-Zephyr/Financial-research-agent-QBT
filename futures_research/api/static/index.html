@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>期货投研 Agent 控制台</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Futures Research Agent</p>
+          <h1>期货投研 Agent 测试控制台</h1>
+          <p class="hero-text">
+            这个页面把健康检查、手动触发、实时事件、报告查询和测试说明放在同一个界面里，方便你在本地和部署后快速验收。
+          </p>
+          <div class="hero-actions">
+            <button id="refresh-health" class="primary">刷新健康状态</button>
+            <button id="refresh-reports" class="secondary">刷新报告列表</button>
+            <button id="clear-events" class="ghost">清空事件面板</button>
+            <a class="link-chip" href="#report-library">跳到报告区</a>
+            <a class="link-chip" href="/docs" target="_blank" rel="noreferrer">打开接口文档</a>
+          </div>
+        </div>
+        <div class="hero-status">
+          <div class="status-card">
+            <span class="status-label">API 地址</span>
+            <strong id="api-origin">-</strong>
+          </div>
+          <div class="status-card">
+            <span class="status-label">WebSocket</span>
+            <strong id="ws-origin">-</strong>
+          </div>
+          <div class="status-card">
+            <span class="status-label">服务状态</span>
+            <strong id="health-status">未检查</strong>
+          </div>
+          <div class="status-card">
+            <span class="status-label">报告存储</span>
+            <strong id="storage-status">未知</strong>
+          </div>
+          <div class="status-card">
+            <span class="status-label">模型</span>
+            <strong id="model-status">未知</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="panel span-2" id="report-library">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">测试流程</p>
+              <h2>推荐验收顺序</h2>
+            </div>
+            <span class="chip">低代码前端</span>
+          </div>
+          <ol class="steps">
+            <li>先点“刷新健康状态”，确认 API 已启动，若存储开启会显示 PostgreSQL 已接入。</li>
+            <li>点击“连接运行事件”或“连接批量事件”，让 WebSocket 保持在线。</li>
+            <li>在“单品种触发”中提交 `CF`、`AU` 或 `LC`，观察事件流是否出现 `run_started` 到 `run_completed`。</li>
+            <li>在“批量触发”中提交 `CF,M,AU,AG,CU,AL,LC,SI` 或勾选“全部品种”，观察批量事件。</li>
+            <li>点击“刷新报告列表”，确认数据库已落库；未配置数据库时页面会提示只支持流程验证。</li>
+            <li>需要正式部署时，再对照页面底部“使用手册”执行 `docker compose` 和 cron 验收。</li>
+          </ol>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">实时订阅</p>
+              <h2>WebSocket 事件</h2>
+            </div>
+          </div>
+          <div class="stack-actions">
+            <button id="connect-run-events" class="primary">连接运行事件</button>
+            <button id="connect-batch-events" class="secondary">连接批量事件</button>
+            <button id="disconnect-events" class="ghost">断开连接</button>
+          </div>
+          <p class="muted" id="event-connection-status">当前未连接。</p>
+          <pre id="events-log" class="console"></pre>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">手动触发</p>
+              <h2>单品种运行</h2>
+            </div>
+          </div>
+          <form id="single-run-form" class="form-grid">
+            <label>
+              品种 / 合约
+              <input name="symbol" value="CF" placeholder="CF 或 CF2605" required />
+            </label>
+            <label>
+              目标日期
+              <input name="target_date" type="date" />
+            </label>
+            <button type="submit" class="primary">触发单品种</button>
+          </form>
+          <pre id="single-run-result" class="result-box"></pre>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">批量运行</p>
+              <h2>多品种触发</h2>
+            </div>
+          </div>
+          <form id="batch-run-form" class="form-grid">
+            <label>
+              品种列表
+              <input name="symbols" value="CF,M,AU,AG,CU,AL,LC,SI" placeholder="CF,M,AU,AG,CU,AL,LC,SI" />
+            </label>
+            <label>
+              目标日期
+              <input name="target_date" type="date" />
+            </label>
+            <label>
+              并发数
+              <input name="concurrency" type="number" value="2" min="1" max="16" />
+            </label>
+            <label class="checkbox-line">
+              <input name="all_varieties" type="checkbox" />
+              执行全部已注册品种
+            </label>
+            <button type="submit" class="primary">触发批量</button>
+          </form>
+          <pre id="batch-run-result" class="result-box"></pre>
+        </section>
+
+        <section class="panel span-2">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">报告查询</p>
+              <h2>已保存研报</h2>
+            </div>
+            <button id="refresh-reports-inline" class="secondary">刷新</button>
+          </div>
+          <form id="reports-filter-form" class="filters">
+            <label>
+              品种代码
+              <input name="variety_code" placeholder="CF" />
+            </label>
+            <label>
+              合约代码
+              <input name="symbol" placeholder="CF2605" />
+            </label>
+            <label>
+              日期
+              <input name="target_date" type="date" />
+            </label>
+            <label>
+              条数
+              <input name="limit" type="number" value="20" min="1" max="100" />
+            </label>
+            <button type="submit" class="ghost">应用筛选</button>
+          </form>
+          <div id="reports-state" class="muted">等待查询。</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>run_id</th>
+                  <th>品种</th>
+                  <th>合约</th>
+                  <th>日期</th>
+                  <th>分数</th>
+                  <th>情绪</th>
+                  <th>通过</th>
+                </tr>
+              </thead>
+              <tbody id="reports-table-body"></tbody>
+            </table>
+          </div>
+          <div class="detail-panel">
+            <div class="detail-head">
+              <h3>报告详情</h3>
+              <div class="detail-actions">
+                <a id="open-report-pdf" class="link-chip hidden" target="_blank" rel="noreferrer">打开 PDF</a>
+                <a id="open-report-md" class="link-chip hidden" target="_blank" rel="noreferrer">打开 Markdown</a>
+                <button id="clear-report-detail" class="ghost">清空详情</button>
+              </div>
+            </div>
+            <pre id="report-detail" class="console short"></pre>
+          </div>
+        </section>
+
+        <section class="panel span-2">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">使用手册</p>
+              <h2>本地与部署后怎么用</h2>
+            </div>
+          </div>
+          <div class="manual-grid">
+            <article>
+              <h3>本地开发</h3>
+              <p>1. 运行 `uvicorn futures_research.api.app:app --reload`。</p>
+              <p>2. 打开当前页面，先检查健康状态，再连接 WebSocket。</p>
+              <p>3. 通过表单触发 `POST /runs` 或 `POST /batches`，观察事件流。</p>
+              <p>4. 若启用了数据库，再查询 `/reports` 验证落库。</p>
+            </article>
+            <article>
+              <h3>Docker Compose</h3>
+              <p>1. `cp .env.example .env`。</p>
+              <p>2. `docker compose up --build -d`。</p>
+              <p>3. 浏览器访问 `http://127.0.0.1:8080/`。</p>
+              <p>4. 若要做计划任务，执行 `chmod +x deploy/cron/run_batch.sh` 后交给宿主机 cron。</p>
+            </article>
+            <article>
+              <h3>推荐验收点</h3>
+              <p>1. `/healthz` 为 `ok`。</p>
+              <p>2. 单品种触发后出现 `run_completed`。</p>
+              <p>3. 批量触发后出现 `batch_completed`。</p>
+              <p>4. 若存储开启，报告列表能显示新生成的 `run_id` 和分数。</p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

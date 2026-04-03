@@ -1,0 +1,18 @@
+code: AL
+name: 沪铝
+exchange: SHFE
+contracts:
+  - AL2605
+  - AL2606
+  - AL2607
+key_factors:
+  - 电解铝运行产能与成本端波动
+  - 铝锭社会库存与仓单变化
+  - 地产与汽车家电终端消费
+  - 氧化铝价格与利润传导
+news_keywords:
+  - [沪铝, 电解铝, 氧化铝, 铝库存, 地产, 汽车]
+data_sources:
+  - type: web_search
+  - type: mock
+prompt_template: industrial_materials_futures

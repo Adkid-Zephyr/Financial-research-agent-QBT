@@ -1,0 +1,15 @@
+.DS_Store
+.env
+.venv/
+.venv-py39-backup/
+.tools/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.db
+*.sqlite
+*.sqlite3
+outputs/*
+!outputs/.gitkeep
+report_review_agent/outputs/*
+!report_review_agent/outputs/.gitkeep

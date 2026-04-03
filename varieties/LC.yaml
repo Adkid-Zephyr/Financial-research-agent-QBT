@@ -1,0 +1,18 @@
+code: LC
+name: 碳酸锂
+exchange: GFEX
+contracts:
+  - LC2607
+  - LC2609
+  - LC2611
+key_factors:
+  - 锂盐厂开工率与供应增量释放
+  - 正极材料排产与动力电池需求
+  - 社会库存与仓单变化节奏
+  - 现货贴水与成本曲线支撑
+news_keywords:
+  - [碳酸锂, 锂盐, 动力电池, 正极材料, 库存, 锂价]
+data_sources:
+  - type: web_search
+  - type: mock
+prompt_template: industrial_materials_futures

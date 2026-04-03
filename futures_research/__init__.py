@@ -1,0 +1,1 @@
+"""Futures research agent package."""
