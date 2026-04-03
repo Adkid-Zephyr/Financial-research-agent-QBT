@@ -4,12 +4,14 @@ import asyncio
 import logging
 from datetime import date
 from typing import Awaitable, Callable, List
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field, model_validator
 
 from futures_research.main import run_research
 from futures_research.models.batch import BatchResearchSummary
+from futures_research.models.research import ResearchProfile
 from futures_research.models.state import WorkflowState
 from futures_research.scheduler import run_batch_research
 from futures_research.varieties import VarietyRegistry
@@ -17,18 +19,21 @@ from futures_research.varieties import VarietyRegistry
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-SingleRunner = Callable[[str, date], Awaitable[WorkflowState]]
+SingleRunner = Callable[..., Awaitable[WorkflowState]]
 BatchRunner = Callable[[List[str], date, int], Awaitable[BatchResearchSummary]]
 
 
 class RunTriggerRequest(BaseModel):
     symbol: str
     target_date: date = Field(default_factory=date.today)
+    research_profile: ResearchProfile = Field(default_factory=ResearchProfile)
 
 
 class RunTriggerAccepted(BaseModel):
     status: str = "accepted"
+    run_id: UUID
     requested_symbol: str
+    resolved_symbol: str
     target_date: date
 
 
@@ -91,9 +96,23 @@ def _resolve_requested_symbols(payload: BatchTriggerRequest) -> List[str]:
 
 @router.post("/runs", response_model=RunTriggerAccepted, status_code=status.HTTP_202_ACCEPTED)
 async def trigger_single_run(payload: RunTriggerRequest, request: Request) -> RunTriggerAccepted:
-    _spawn_background_task(_get_single_runner(request)(payload.symbol.strip().upper(), payload.target_date))
+    registry = VarietyRegistry()
+    registry.scan()
+    requested_symbol = payload.symbol.strip().upper()
+    run_id = uuid4()
+    resolved_symbol = registry.resolve_contract(requested_symbol)
+    _spawn_background_task(
+        _get_single_runner(request)(
+            requested_symbol,
+            payload.target_date,
+            research_profile=payload.research_profile,
+            run_id=run_id,
+        )
+    )
     return RunTriggerAccepted(
-        requested_symbol=payload.symbol.strip().upper(),
+        run_id=run_id,
+        requested_symbol=requested_symbol,
+        resolved_symbol=resolved_symbol,
         target_date=payload.target_date,
     )
 

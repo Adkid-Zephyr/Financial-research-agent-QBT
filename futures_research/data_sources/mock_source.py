@@ -11,6 +11,14 @@ class MockDataSource(DataSourceAdapter):
 
     async def fetch(self, request: DataFetchRequest) -> SourcePayload:
         highlights = self._build_highlights(request.key_factors, request.variety_name)
+        if request.persona_label or request.horizon_label:
+            highlights.insert(
+                0,
+                "本轮模拟数据将按%s视角、%s框架组织观察重点。"
+                % (request.persona_label or "默认机构", request.horizon_label or "标准"),
+            )
+        if request.research_focus:
+            highlights.insert(0, "用户额外关注：%s。" % request.research_focus)
         metrics = self._build_metrics(request)
         sources = [
             "MockMarketWire",
@@ -21,6 +29,8 @@ class MockDataSource(DataSourceAdapter):
             f"{request.variety_name}{request.contract} 的模拟数据已生成，覆盖"
             f"{len(request.key_factors)}个核心驱动因子。"
         )
+        if request.focus_points:
+            summary += " 重点偏向：%s。" % "、".join(request.focus_points[:3])
         raw_items = [
             {
                 "title": factor,

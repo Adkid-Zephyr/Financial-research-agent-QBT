@@ -24,8 +24,10 @@ def build_analyzer_user_prompt(
     raw_data: dict,
     review_result: Optional[ReviewResult],
     next_round: int,
+    request_context: dict | None = None,
 ) -> str:
     market_context = prompt_repository.load_market_template(variety_definition)
+    request_section = _build_request_section(request_context)
     feedback_section = ""
     if review_result and not review_result.passed:
         feedback_section = """
@@ -43,6 +45,8 @@ def build_analyzer_user_prompt(
         )
     return """
 {market_context}
+
+{request_section}
 
 请基于以下原始数据，输出结构化分析框架，格式必须包含：
 ## 核心观点
@@ -62,6 +66,28 @@ def build_analyzer_user_prompt(
 {feedback_section}
 """.strip().format(
         market_context=market_context,
+        request_section=request_section,
         raw_data=raw_data,
         feedback_section=feedback_section or "本轮为首轮分析，无需引用审核反馈。",
+    )
+
+
+def _build_request_section(request_context: dict | None) -> str:
+    if not request_context:
+        return "本次使用默认机构日报口径。"
+    key_points = request_context.get("key_points", [])
+    directives = request_context.get("writing_directives", [])
+    return """
+本次研究任务偏好：
+- 研究周期：{horizon}
+- 身份视角：{persona}
+- 用户自定义关注：{focus}
+- 已提炼关键点：{key_points}
+- 写作/分析要求：{directives}
+""".strip().format(
+        horizon=request_context.get("horizon_label", "中线"),
+        persona=request_context.get("persona_label", "金融公司期货部门"),
+        focus=request_context.get("user_focus", "未额外指定"),
+        key_points="；".join(key_points) if key_points else "按品种默认关键因子展开",
+        directives="；".join(directives) if directives else "保持标准机构研究表达",
     )

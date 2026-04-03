@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from futures_research.llm import client as llm_client_module
 from futures_research.main import run_research
+from futures_research.models.research import ResearchProfile
 from futures_research.models.state import WorkflowState
 from futures_research.runtime import build_runtime
 from futures_research.storage import SqlAlchemyReportRepository
@@ -184,6 +185,24 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(state.symbol, "AU2606")
         self.assertIn("沪金", state.report_draft)
         self.assertTrue(state.review_result.passed)
+
+    def test_custom_research_profile_is_carried_into_workflow(self):
+        state = asyncio.run(
+            run_research(
+                "CF",
+                date.today(),
+                research_profile=ResearchProfile(
+                    horizon="short_term",
+                    persona="retail_day_trader",
+                    user_focus="重点分析天气扰动、近月基差和持仓异动",
+                ),
+            )
+        )
+        request_context = state.raw_data.get("request_context", {})
+        self.assertEqual(request_context.get("horizon"), "short_term")
+        self.assertEqual(request_context.get("persona"), "retail_day_trader")
+        self.assertIn("天气扰动", request_context.get("briefing_summary", ""))
+        self.assertIn("散户短线高胜率交易者", state.report_draft)
 
     def test_registry_scan_lists_all_expected_varieties(self):
         runtime = build_runtime()

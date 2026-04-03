@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from futures_research import config
-from futures_research.api.routes import events_router, reports_router, runs_router
+from futures_research.api.routes import events_router, reports_router, research_router, runs_router
 from futures_research.events import EventBus, get_event_bus
 from futures_research.main import run_research
 from futures_research.scheduler import run_batch_research
@@ -57,6 +57,7 @@ def create_app(repository: Optional[ReportRepository] = None, event_bus: Optiona
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(reports_router, prefix="/reports", tags=["reports"])
     app.include_router(events_router, tags=["events"])
+    app.include_router(research_router, tags=["research"])
     app.include_router(runs_router, tags=["runs"])
     return app
 

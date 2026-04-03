@@ -34,6 +34,10 @@
 - CLI 入口保持可用，用于人工排障与手工执行；部署态实时订阅优先走 API 触发。
 - 本地手工测试环境默认改为 SQLite 文件库 `sqlite+pysqlite:///./futures_research_local.db`，这样不开 Docker 也能在 UI 中查看报告存储。
 - 当前 LLM 接入已切换为阿里云百炼 Anthropic 兼容端，基础配置为 `ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic`，模型 ID 使用官方名称 `kimi-k2.5`。
+- `2026-04-03` 开始为“公司客户端前的网页测试入口”做前端重构，优先在现有 FastAPI + 静态页架构上完成产品化研究入口，而不是引入新的前端构建体系。
+- 这轮前端改造不扩 Phase 2，继续使用 Phase 1 现有工作流与 mock 数据链路，但允许把用户自定义研究诉求注入到 prompt 和最终报告中。
+- 为了支持“先梳理需求、再生成研报”的交互，新增研究偏好模型与 API：`/research/options` 用于加载品种/周期/身份元数据，`/research/preview` 用于生成研究诉求摘要。
+- 单品种触发 API `POST /runs` 现已支持 `research_profile`，并在响应中返回 `run_id` 与 `resolved_symbol`，方便网页前端按一次具体任务订阅事件、查询详情和展示下载链接。
 
 ## 实际执行日志
 - 已创建项目脚手架、低代码品种配置扫描器、DataSourceRegistry、MockDataSource、PromptRepository、LangGraph 线性图。
@@ -68,6 +72,23 @@
 - 已修复 reviewer 对免责声明和“存在一定支撑”类表述的误判，支持 `AI生成` / `AI辅助生成` / `人工智能生成` 等变体。
 - 已将 UI 默认批量品种列表示例更新为 `CF,M,AU,AG,CU,AL,LC,SI`，便于直接测试扩展后的品种集。
 - 已完成 Python 3.14.3 适配修补：将 `scheduler.py` 中的 `datetime.utcnow()` 替换为 `datetime.now(UTC)`，并为 SQLAlchemy 仓储补充 `close()`/engine dispose，同时把 FastAPI 应用关闭逻辑切换到 `lifespan`，消除 3.14 下的 `DeprecationWarning` 与 SQLite `ResourceWarning`。
+- 已新增 `futures_research.models.research` 与 `futures_research.research_profile`，用于统一管理研究周期、身份视角、前端元数据输出、研究需求摘要与 prompt 注入上下文。
+- 已将 `run_research()` 扩展为可接收 `research_profile` 与预生成 `run_id`，并把 `request_context` 注入到初始 `WorkflowState.raw_data` 中，供后续聚合、分析、写作、存储、详情查询统一复用。
+- 已将 `aggregate/analyze/write` 三段工作流接入用户偏好：Mock 数据摘要会体现身份/周期/重点；分析和写作 prompt 会显式读取“研究周期、身份视角、用户关注点、AI 梳理要点、写作导向”。
+- 已增强本地 mock LLM 输出，使无真实模型时也能在报告中体现 `短线/中线/长线`、`散户短线高胜率交易者/供应商/期货部门/...` 等差异，便于网页端直接演示。
+- 已重写 `futures_research/api/static/index.html`、`app.js`、`styles.css`，将原“验收控制台”升级为产品化的“期货研报工作台”：
+  - 顶部参数条：品种、合约、研究周期、日期
+  - 中央大输入框：一句话描述研报诉求
+  - 底部身份卡片：切换散户短线、大户、供应商、期货部门、投机者等视角
+  - 需求梳理卡片：展示 AI 摘要、关键关注点、写作导向、模板提示
+  - 运行状态侧栏：健康状态、WebSocket、事件日志、当前任务状态
+  - 最近一次生成结果：展示摘要、评分、情绪与 Markdown/PDF 下载
+  - 历史报告和批量触发面板：保留原有调试能力
+- 已补充 API / 工作流测试覆盖：
+  - 新增 `/research/options` 与 `/research/preview` 接口测试
+  - 更新 `POST /runs` 测试，验证 `research_profile`、`run_id`、`resolved_symbol`
+  - 新增工作流测试，验证自定义研究偏好能进入 `WorkflowState.raw_data.request_context` 并影响生成报告
+- 已修复 `WS /ws/events` 在服务关闭时把正常 `CancelledError` 打成异常日志的问题，停止本地 `uvicorn` 或容器时日志会更干净。
 
 ## 自测结果
 - `.venv/bin/python run.py --symbol CF`：成功输出完整 Markdown 研报和审核摘要。
@@ -116,6 +137,26 @@
 - `2026-04-02` 执行 `DATABASE_URL='' /tmp/futures-research-py314/bin/python -W error::DeprecationWarning -W error::ResourceWarning -m unittest discover -s tests`：24 个用例全部通过，确认项目代码层面的 3.14 弃用/资源警告已清理。
 - `2026-04-02` 执行 `ANTHROPIC_API_KEY='' ANTHROPIC_BASE_URL='' DATABASE_URL='' /tmp/futures-research-py314/bin/python run.py --symbol CF --target-date 2026-04-02`：CLI 单品种入口成功输出完整研报与审核摘要，但启动阶段仍出现 `langchain_core` 触发的 `Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.` 上游 `UserWarning`。
 - `2026-04-02` 执行 `DATABASE_URL='' .venv/bin/python -m unittest discover -s tests`：Python 3.11.9 主环境回归通过，24 个用例全部通过。
+- `2026-04-03` 执行 `.venv/bin/python -m unittest tests.test_api tests.test_workflow tests.test_websocket`：18 个用例全部通过，覆盖新研究入口 API、工作流定制偏好透传和现有 WebSocket 广播。
+- `2026-04-03` 执行 `node --check futures_research/api/static/app.js`：前端脚本通过语法检查。
+- `2026-04-03` 执行本地 `uvicorn` 烟测（`DATABASE_URL=sqlite+pysqlite:///./futures_research_local.db`，端口 `8021`）：
+  - `GET /healthz` 返回 `status=ok` 且 `storage_enabled=true`
+  - `GET /research/options` 返回 8 个品种、3 个研究周期、5 个身份视角
+  - `POST /research/preview` 成功返回棉花 `CF2605` 的摘要、关键点、写作导向与模板提示
+  - `GET /` 返回新的“期货研报工作台”静态首页
+- `2026-04-03` 执行真实触发烟测：
+  - `POST /runs` 提交 `CF2605 + short_term + retail_day_trader + 自定义关注点`，返回 `run_id=5394c6bc-c5f2-475c-8e7a-60fa92a91537`
+  - `WS /ws/events?channel=run` 收到完整事件序列：`subscribed -> run_started -> step_started*4 -> review_round_completed -> run_completed`
+  - `GET /reports/5394c6bc-c5f2-475c-8e7a-60fa92a91537` 可读回完整详情，`raw_data.request_context`、Markdown/PDF 下载地址均存在
+  - `GET /outputs/2026-04-03/CF_CF2605_5394c6bc.md` 与 `.pdf` 均返回 `200 OK`
+- `2026-04-03` 使用阿里百炼 Anthropic 兼容端做真实激活：
+  - 最小探针 `messages.create(model='kimi-k2.5')` 返回 `pong`
+  - 本地服务以 `ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic`、`LLM_MODEL=kimi-k2.5`、`ENABLE_ANTHROPIC_WEB_SEARCH=false` 启动成功
+  - `GET /healthz` 返回真实百炼 base URL
+  - `POST /research/preview` 成功返回真实模型生成的摘要、关键点与写作导向
+  - `POST /runs` 触发 `run_id=a190b6d9-752f-4d29-8e51-9fba655c9c14` 的真实模型研报生成
+  - WebSocket 观测到首轮审核未过后自动进入第二轮重写，并在第二轮审核通过，最终 `review_round=2`、`final_score=100`
+  - `GET /reports/a190b6d9-752f-4d29-8e51-9fba655c9c14` 返回完整详情，Markdown/PDF 下载地址可用
 
 ## 接口摘要
 - 切片1详见 `memory/SLICE_01_HANDOFF.md`。
@@ -124,6 +165,11 @@
 - 切片4详见 `memory/SLICE_04_HANDOFF.md`。
 - 切片5详见 `memory/SLICE_05_HANDOFF.md`。
 - 部署增强详见 `memory/DEPLOYMENT_MVP_HANDOFF.md`。
+- 前端研究入口重构详见 `memory/FRONTEND_STUDIO_HANDOFF.md`。
 
 ## 新线程接续提示词
 - Phase 1 已完成；当前已补上 Docker Compose MVP 部署文件与同进程触发 API。继续工作前请先阅读 `memory/PROJECT_MEMORY.md` 和 `memory/DEPLOYMENT_MVP_HANDOFF.md`。如果 Docker 已安装，优先完成真实 `docker compose up`、PostgreSQL 持久化、Nginx 代理与 WebSocket 的容器态验收；如果继续扩展生产化，则在现有基础上推进 HTTPS、鉴权、监控告警和运维脚本。
+- 当前还额外完成了一版“期货研报工作台”前端研究入口。若在新线程继续，请先阅读 `memory/PROJECT_MEMORY.md` 和 `memory/FRONTEND_STUDIO_HANDOFF.md`，然后优先做以下其一：
+  - 继续打磨网页前端的交互细节、视觉层级与多轮需求确认体验
+  - 开始把这套前端交互拆成可嵌入公司客户端的接口契约和组件边界
+  - 将研究偏好进一步注入真实 LLM 提示词/模板体系，而不只是在 mock 演示链路中生效

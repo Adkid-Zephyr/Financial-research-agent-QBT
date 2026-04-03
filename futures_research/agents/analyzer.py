@@ -22,12 +22,14 @@ async def analyze_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[s
     variety_definition = runtime.variety_registry.get(state["variety_code"])
     review_result = _load_review_result(state.get("review_result"))
     next_round = int(state.get("review_round", 0)) + 1
+    request_context = (state.get("raw_data") or {}).get("request_context", {})
     user_prompt = build_analyzer_user_prompt(
         variety_definition=variety_definition,
         prompt_repository=runtime.prompt_repository,
         raw_data=state["raw_data"],
         review_result=review_result,
         next_round=next_round,
+        request_context=request_context,
     )
     analysis_result = await runtime.llm_client.generate_analysis(
         "%s\n\n%s" % (ANALYZER_SYSTEM_PROMPT, user_prompt),
@@ -40,6 +42,7 @@ async def analyze_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[s
             "review_feedback": review_result.feedback if review_result else "",
             "blocking_issues": review_result.blocking_issues if review_result else [],
             "requested_review_round": next_round,
+            "research_request": request_context,
         },
     )
     return {

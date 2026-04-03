@@ -14,6 +14,10 @@ class DataFetchRequest(BaseModel):
     exchange: str
     key_factors: List[str] = Field(default_factory=list)
     news_keywords: List[str] = Field(default_factory=list)
+    research_focus: str = ""
+    focus_points: List[str] = Field(default_factory=list)
+    horizon_label: str = ""
+    persona_label: str = ""
 
 
 class SourcePayload(BaseModel):

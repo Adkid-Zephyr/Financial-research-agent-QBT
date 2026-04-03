@@ -1,24 +1,35 @@
 from __future__ import annotations
 
 from datetime import date
+from uuid import UUID
 
 from futures_research.events import get_current_batch_id, publish_event
+from futures_research.models.research import ResearchProfile
 from futures_research.models.state import WorkflowState
+from futures_research.research_profile import build_research_request_context
 from futures_research.runtime import build_runtime
 from futures_research.storage import build_report_repository, persist_report_artifacts
 from futures_research.workflow.graph import build_workflow
 
 
-async def run_research(symbol: str, target_date: date) -> WorkflowState:
+async def run_research(
+    symbol: str,
+    target_date: date,
+    research_profile: ResearchProfile | None = None,
+    run_id: UUID | None = None,
+) -> WorkflowState:
     runtime = build_runtime()
     variety_definition = runtime.variety_registry.get(symbol)
     contract = runtime.variety_registry.resolve_contract(symbol)
+    request_context = build_research_request_context(variety_definition, contract, research_profile)
 
     initial_state = WorkflowState(
+        run_id=run_id or WorkflowState.model_fields["run_id"].default_factory(),
         symbol=contract,
         variety_code=variety_definition.code,
         variety=variety_definition.name,
         target_date=target_date,
+        raw_data={"request_context": request_context},
     )
     publish_event(
         channel="run",

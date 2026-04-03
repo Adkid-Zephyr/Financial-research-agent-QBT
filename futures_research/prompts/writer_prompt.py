@@ -27,8 +27,10 @@ def build_writer_user_prompt(
     raw_data: dict,
     review_result: Optional[ReviewResult],
     next_round: int,
+    request_context: dict | None = None,
 ) -> str:
     market_context = prompt_repository.load_market_template(variety_definition)
+    request_section = _build_request_section(request_context)
     revision_section = ""
     if review_result and not review_result.passed:
         revision_section = """
@@ -43,6 +45,8 @@ def build_writer_user_prompt(
     return """
 {market_context}
 
+{request_section}
+
 请把下面的分析框架写成完整日报 Markdown：
 {analysis_result}
 
@@ -52,7 +56,31 @@ def build_writer_user_prompt(
 {revision_section}
 """.strip().format(
         market_context=market_context,
+        request_section=request_section,
         analysis_result=analysis_result,
         raw_data=raw_data,
         revision_section=revision_section or "本轮为首轮写作，按标准模板输出即可。",
+    )
+
+
+def _build_request_section(request_context: dict | None) -> str:
+    if not request_context:
+        return "本次按标准机构日报风格写作。"
+    key_points = request_context.get("key_points", [])
+    directives = request_context.get("writing_directives", [])
+    return """
+本次研报定制要求：
+- 研究周期：{horizon}
+- 目标身份：{persona}
+- 用户重点：{focus}
+- 关键关注点：{key_points}
+- 写作导向：{directives}
+
+要求：在不改变合规边界和六章节结构的前提下，调整信息排序和强调重点，使内容更贴合本次任务偏好。
+""".strip().format(
+        horizon=request_context.get("horizon_label", "中线"),
+        persona=request_context.get("persona_label", "金融公司期货部门"),
+        focus=request_context.get("user_focus", "未额外指定"),
+        key_points="；".join(key_points) if key_points else "按品种默认关键因子展开",
+        directives="；".join(directives) if directives else "保持标准机构研究表达",
     )

@@ -8,6 +8,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from futures_research.api import create_app
+from futures_research.models.research import ResearchProfile
 from futures_research.models.report import ResearchReport
 from futures_research.models.review import ReviewResult
 from futures_research.models.state import WorkflowState
@@ -92,7 +93,7 @@ class ApiTests(unittest.TestCase):
     def test_frontend_root_page(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("期货投研 Agent 测试控制台", response.text)
+        self.assertIn("期货研报工作台", response.text)
 
     def test_healthz_exposes_llm_status(self):
         response = self.client.get("/healthz")
@@ -101,13 +102,42 @@ class ApiTests(unittest.TestCase):
         self.assertIn("llm_model", payload)
         self.assertIn("llm_base_url", payload)
 
+    def test_research_options(self):
+        response = self.client.get("/research/options")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["varieties"])
+        self.assertTrue(payload["horizons"])
+        self.assertTrue(payload["personas"])
+
+    def test_research_preview(self):
+        response = self.client.post(
+            "/research/preview",
+            json={
+                "symbol": "CF",
+                "research_profile": {
+                    "horizon": "short_term",
+                    "persona": "retail_day_trader",
+                    "user_focus": "重点看天气扰动和近月基差",
+                },
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["variety_code"], "CF")
+        self.assertEqual(payload["resolved_symbol"], "CF2605")
+        self.assertTrue(payload["summary"])
+        self.assertTrue(payload["key_points"])
+
     def test_trigger_single_run(self):
         called = threading.Event()
         received = {}
 
-        async def fake_runner(symbol, target_date):
+        async def fake_runner(symbol, target_date, research_profile=None, run_id=None):
             received["symbol"] = symbol
             received["target_date"] = target_date
+            received["research_profile"] = research_profile
+            received["run_id"] = run_id
             called.set()
             return self.sample_state
 
@@ -115,12 +145,28 @@ class ApiTests(unittest.TestCase):
         try:
             client.app.state.run_single = fake_runner
 
-            response = client.post("/runs", json={"symbol": "cf", "target_date": "2026-04-01"})
+            response = client.post(
+                "/runs",
+                json={
+                    "symbol": "cf",
+                    "target_date": "2026-04-01",
+                    "research_profile": {
+                        "horizon": "long_term",
+                        "persona": "supplier",
+                        "user_focus": "关注套保与利润保护",
+                    },
+                },
+            )
             self.assertEqual(response.status_code, 202)
             self.assertEqual(response.json()["requested_symbol"], "CF")
+            self.assertEqual(response.json()["resolved_symbol"], "CF2605")
+            self.assertTrue(response.json()["run_id"])
             self.assertTrue(called.wait(2))
             self.assertEqual(received["symbol"], "CF")
             self.assertEqual(received["target_date"], date(2026, 4, 1))
+            self.assertIsInstance(received["research_profile"], ResearchProfile)
+            self.assertEqual(received["research_profile"].persona, "supplier")
+            self.assertIsNotNone(received["run_id"])
         finally:
             client.close()
 

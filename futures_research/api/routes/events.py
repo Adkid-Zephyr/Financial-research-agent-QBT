@@ -42,10 +42,15 @@ async def websocket_events(websocket: WebSocket):
             try:
                 event = subscription.queue.get_nowait()
             except Empty:
-                await asyncio.sleep(0.05)
+                try:
+                    await asyncio.sleep(0.05)
+                except asyncio.CancelledError:
+                    break
                 continue
             await websocket.send_json(event.model_dump(mode="json"))
     except WebSocketDisconnect:
+        pass
+    except asyncio.CancelledError:
         pass
     finally:
         event_bus.unsubscribe(subscription.subscription_id)
