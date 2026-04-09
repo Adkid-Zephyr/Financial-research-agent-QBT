@@ -157,6 +157,7 @@
   - `POST /runs` 触发 `run_id=a190b6d9-752f-4d29-8e51-9fba655c9c14` 的真实模型研报生成
   - WebSocket 观测到首轮审核未过后自动进入第二轮重写，并在第二轮审核通过，最终 `review_round=2`、`final_score=100`
   - `GET /reports/a190b6d9-752f-4d29-8e51-9fba655c9c14` 返回完整详情，Markdown/PDF 下载地址可用
+- `2026-04-03` 已将当前 UI 重构版本推送到 GitHub 分支 `ui-redesign-plusIDENTITY`，提交为 `cab47d7 Add research studio UI redesign`。
 
 ## 接口摘要
 - 切片1详见 `memory/SLICE_01_HANDOFF.md`。
@@ -166,6 +167,7 @@
 - 切片5详见 `memory/SLICE_05_HANDOFF.md`。
 - 部署增强详见 `memory/DEPLOYMENT_MVP_HANDOFF.md`。
 - 前端研究入口重构详见 `memory/FRONTEND_STUDIO_HANDOFF.md`。
+- 家庭电脑续接说明详见 `memory/HOME_MACHINE_HANDOFF_2026-04-03.md`。
 
 ## 新线程接续提示词
 - Phase 1 已完成；当前已补上 Docker Compose MVP 部署文件与同进程触发 API。继续工作前请先阅读 `memory/PROJECT_MEMORY.md` 和 `memory/DEPLOYMENT_MVP_HANDOFF.md`。如果 Docker 已安装，优先完成真实 `docker compose up`、PostgreSQL 持久化、Nginx 代理与 WebSocket 的容器态验收；如果继续扩展生产化，则在现有基础上推进 HTTPS、鉴权、监控告警和运维脚本。
