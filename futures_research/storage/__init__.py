@@ -4,7 +4,7 @@ from futures_research.storage.report_repository import (
     SqlAlchemyReportRepository,
     build_report_repository,
 )
-from futures_research.storage.artifacts import persist_report_artifacts
+from futures_research.storage.artifacts import persist_report_artifacts, remove_report_artifacts
 
 __all__ = [
     "ReportRepository",
@@ -12,4 +12,5 @@ __all__ = [
     "SqlAlchemyReportRepository",
     "build_report_repository",
     "persist_report_artifacts",
+    "remove_report_artifacts",
 ]

@@ -4,7 +4,7 @@ exchange: SHFE
 contracts:
   - AU2606
   - AU2612
-  - AU2706
+  - AU2704
 key_factors:
   - 美元指数与美国实际利率路径
   - 全球央行购金与避险资金流向
@@ -13,6 +13,5 @@ key_factors:
 news_keywords:
   - [沪金, 黄金, COMEX黄金, 美元指数, 实际利率, 央行购金]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
 prompt_template: precious_metals_futures

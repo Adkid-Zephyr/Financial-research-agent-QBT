@@ -13,6 +13,5 @@ key_factors:
 news_keywords:
   - [棉花, 郑棉, 纺织, ICE, USDA, 新疆棉]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
 prompt_template: default_futures

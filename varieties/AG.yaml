@@ -4,7 +4,7 @@ exchange: SHFE
 contracts:
   - AG2606
   - AG2612
-  - AG2706
+  - AG2703
 key_factors:
   - 美元指数与美国实际利率变化
   - 金银比修复与贵金属板块联动
@@ -13,6 +13,5 @@ key_factors:
 news_keywords:
   - [沪银, 白银, COMEX白银, 金银比, 实际利率, 光伏]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
 prompt_template: precious_metals_futures

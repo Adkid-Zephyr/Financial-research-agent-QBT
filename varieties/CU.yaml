@@ -13,6 +13,5 @@ key_factors:
 news_keywords:
   - [沪铜, 铜, LME铜, 冶炼加工费, 电网投资, 铜库存]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
 prompt_template: industrial_materials_futures

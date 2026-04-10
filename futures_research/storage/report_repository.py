@@ -29,6 +29,8 @@ class ReportSummary(BaseModel):
     confidence: str = ""
     review_passed: bool = False
     data_sources: List[str] = Field(default_factory=list)
+    char_count: int = 0
+    estimated_tokens: int = 0
 
 
 class ReportRepository(Protocol):
@@ -53,6 +55,12 @@ class ReportRepository(Protocol):
         ...
 
     def get_workflow_state(self, run_id: UUID) -> Optional[WorkflowState]:
+        ...
+
+    def delete_workflow_state(self, run_id: UUID) -> bool:
+        ...
+
+    def delete_workflow_states(self, run_ids: List[UUID]) -> int:
         ...
 
 
@@ -122,6 +130,8 @@ class SqlAlchemyReportRepository:
             research_reports.c.confidence,
             research_reports.c.review_result,
             research_reports.c.data_sources,
+            research_reports.c.report_draft,
+            research_reports.c.final_report,
         ).order_by(research_reports.c.generated_at.desc(), research_reports.c.run_id.desc())
         if symbol:
             statement = statement.where(research_reports.c.symbol == symbol)
@@ -142,6 +152,20 @@ class SqlAlchemyReportRepository:
             return None
         return self._row_to_workflow_state(row)
 
+    def delete_workflow_state(self, run_id: UUID) -> bool:
+        return self.delete_workflow_states([run_id]) > 0
+
+    def delete_workflow_states(self, run_ids: List[UUID]) -> int:
+        normalized_ids = [str(run_id) for run_id in run_ids]
+        if not normalized_ids:
+            return 0
+        existing_states = [state for state in (self.get_workflow_state(UUID(run_id)) for run_id in normalized_ids) if state]
+        with self.engine.begin() as connection:
+            result = connection.execute(delete(research_reports).where(research_reports.c.run_id.in_(normalized_ids)))
+        for state in existing_states:
+            self._remove_artifacts_for_state(state)
+        return int(result.rowcount or 0)
+
     def _row_to_summary(self, row: RowMapping) -> ReportSummary:
         review_result = row["review_result"] or {}
         return ReportSummary(
@@ -157,6 +181,8 @@ class SqlAlchemyReportRepository:
             confidence=row["confidence"] or "",
             review_passed=bool(review_result.get("passed", False)),
             data_sources=list(row["data_sources"] or []),
+            char_count=self._char_count_from_row(row),
+            estimated_tokens=self._estimate_tokens(self._char_count_from_row(row)),
         )
 
     def _row_to_workflow_state(self, row: RowMapping) -> WorkflowState:
@@ -194,6 +220,25 @@ class SqlAlchemyReportRepository:
 
     def _json_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         return json.loads(json.dumps(payload, ensure_ascii=False, default=str))
+
+    def _char_count_from_row(self, row: RowMapping) -> int:
+        report = row.get("final_report") or {}
+        content = report.get("content") if isinstance(report, dict) else None
+        if content:
+            return len(content)
+        draft = row.get("report_draft") or ""
+        return len(draft)
+
+    def _remove_artifacts_for_state(self, state: WorkflowState) -> None:
+        from futures_research.storage.artifacts import remove_report_artifacts
+
+        remove_report_artifacts(state.final_report)
+
+    @staticmethod
+    def _estimate_tokens(char_count: int) -> int:
+        if char_count <= 0:
+            return 0
+        return max(1, round(char_count / 1.6))
 
 
 def build_report_repository(database_url: Optional[str] = None) -> Optional[ReportRepository]:

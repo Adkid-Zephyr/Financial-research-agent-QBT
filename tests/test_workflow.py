@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
+from futures_research import config
 from futures_research.llm import client as llm_client_module
 from futures_research.main import run_research
 from futures_research.models.state import WorkflowState
@@ -152,6 +153,43 @@ class AlwaysFailLLMClient(RevisionAwareLLMClient):
 """.strip()
 
 
+class HybridLLMClient:
+    is_live = True
+
+    def __init__(self):
+        self.analysis_contexts = []
+
+    async def generate_analysis(self, prompt, context):
+        del prompt
+        self.analysis_contexts.append(context)
+        return """
+{
+  "sentiment": "偏多",
+  "confidence": "中",
+  "core_view": "盘面定价偏强，但仍需保留边界意识。",
+  "supply_view": "供给侧仍需等待直接验证数据，当前只能保留框架观察。",
+  "demand_view": "需求端缺少直接验证数据，暂不扩写为确定结论。",
+  "inventory_view": "库存逻辑仍待真实数据补齐，当前只能确认盘面活跃度。",
+  "international_view": "国际联动先保留框架提醒，不展开数值判断。",
+  "event_view": "最新快照与期限结构已经可核验，其余事件仍待补充。",
+  "key_factor_views": [
+    "盘面涨跌说明资金定价偏强。",
+    "期限结构提示近端仍带谨慎色彩。",
+    "交易活跃度说明盘面并非无量波动。",
+    "研究边界需要被明确写出。"
+  ],
+  "risk_views": [
+    "旧快照不能替代今日事实。",
+    "缺少基本面数字时，盘面判断不能等同于产业链结论。",
+    "若后续真实数据与盘面背离，观点需要修正。"
+  ]
+}
+""".strip()
+
+    async def generate_report(self, prompt, context):
+        raise AssertionError("Hybrid mode should not call generate_report for deterministic writer path.")
+
+
 class WorkflowTests(unittest.TestCase):
     def setUp(self):
         self.api_key_patcher = patch.object(llm_client_module.config, "ANTHROPIC_API_KEY", "")
@@ -218,7 +256,8 @@ class WorkflowTests(unittest.TestCase):
             target_date=date.today(),
             max_review_rounds=2,
         )
-        result = asyncio.run(workflow.ainvoke(initial_state.model_dump()))
+        with patch.object(config, "ANALYSIS_RENDER_MODE", "llm"), patch.object(config, "REPORT_RENDER_MODE", "llm"):
+            result = asyncio.run(workflow.ainvoke(initial_state.model_dump()))
         final_state = WorkflowState.model_validate(result)
 
         self.assertEqual(final_state.review_round, 2)
@@ -242,7 +281,8 @@ class WorkflowTests(unittest.TestCase):
             target_date=date.today(),
             max_review_rounds=2,
         )
-        result = asyncio.run(workflow.ainvoke(initial_state.model_dump()))
+        with patch.object(config, "ANALYSIS_RENDER_MODE", "llm"), patch.object(config, "REPORT_RENDER_MODE", "llm"):
+            result = asyncio.run(workflow.ainvoke(initial_state.model_dump()))
         final_state = WorkflowState.model_validate(result)
 
         self.assertEqual(final_state.review_round, 2)
@@ -251,6 +291,28 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(fake_llm.analysis_contexts), 2)
         self.assertEqual(len(fake_llm.report_contexts), 2)
         self.assertIn("缺少 AI 免责声明", final_state.review_result.blocking_issues)
+
+    def test_hybrid_mode_uses_llm_for_analysis_brief_but_keeps_report_numbers_deterministic(self):
+        runtime = build_runtime()
+        fake_llm = HybridLLMClient()
+        runtime.llm_client = fake_llm
+        workflow = build_workflow(runtime)
+
+        initial_state = WorkflowState(
+            symbol="CF2605",
+            variety_code="CF",
+            variety="棉花",
+            target_date=date.today(),
+            max_review_rounds=2,
+        )
+        with patch.object(config, "ANALYSIS_RENDER_MODE", "hybrid"), patch.object(config, "REPORT_RENDER_MODE", "hybrid"):
+            result = asyncio.run(workflow.ainvoke(initial_state.model_dump()))
+        final_state = WorkflowState.model_validate(result)
+
+        self.assertEqual(len(fake_llm.analysis_contexts), 1)
+        self.assertIn("analysis_brief", final_state.raw_data)
+        self.assertIn("盘面定价偏强", final_state.report_draft)
+        self.assertIn("CTP snapshot API", final_state.report_draft)
 
 
 if __name__ == "__main__":

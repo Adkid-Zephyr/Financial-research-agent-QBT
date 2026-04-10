@@ -13,6 +13,5 @@ key_factors:
 news_keywords:
   - [沪铝, 电解铝, 氧化铝, 铝库存, 地产, 汽车]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
 prompt_template: industrial_materials_futures

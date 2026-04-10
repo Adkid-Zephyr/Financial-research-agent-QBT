@@ -44,6 +44,10 @@
             <span class="status-label">模型</span>
             <strong id="model-status">未知</strong>
           </div>
+          <div class="status-card">
+            <span class="status-label">后端启动时间</span>
+            <strong id="started-at-status">未知</strong>
+          </div>
         </div>
       </header>
 
@@ -79,7 +83,7 @@
             <button id="disconnect-events" class="ghost">断开连接</button>
           </div>
           <p class="muted" id="event-connection-status">当前未连接。</p>
-          <pre id="events-log" class="console"></pre>
+          <div id="events-log" class="console-stream"></div>
         </section>
 
         <section class="panel">
@@ -138,7 +142,11 @@
               <p class="panel-kicker">报告查询</p>
               <h2>已保存研报</h2>
             </div>
-            <button id="refresh-reports-inline" class="secondary">刷新</button>
+            <div class="stack-actions">
+              <button id="delete-selected-reports" class="ghost">删除选中</button>
+              <button id="delete-current-report" class="ghost">删除当前</button>
+              <button id="refresh-reports-inline" class="secondary">刷新</button>
+            </div>
           </div>
           <form id="reports-filter-form" class="filters">
             <label>
@@ -164,11 +172,16 @@
             <table>
               <thead>
                 <tr>
+                  <th>
+                    <input id="select-all-reports" type="checkbox" />
+                  </th>
                   <th>run_id</th>
                   <th>品种</th>
                   <th>合约</th>
+                  <th>生成时间</th>
                   <th>日期</th>
                   <th>分数</th>
+                  <th>估算Tokens</th>
                   <th>情绪</th>
                   <th>通过</th>
                 </tr>
@@ -184,6 +197,13 @@
                 <a id="open-report-md" class="link-chip hidden" target="_blank" rel="noreferrer">打开 Markdown</a>
                 <button id="clear-report-detail" class="ghost">清空详情</button>
               </div>
+            </div>
+            <p class="detail-meta">当前 run_id：<strong id="current-run-id">-</strong></p>
+            <div class="detail-stats" id="report-detail-stats">
+              <span class="stat-chip">生成时间：<strong id="detail-generated-at">-</strong></span>
+              <span class="stat-chip">字符数：<strong id="detail-char-count">-</strong></span>
+              <span class="stat-chip">估算 Tokens：<strong id="detail-estimated-tokens">-</strong></span>
+              <span class="stat-chip">审核轮次：<strong id="detail-review-rounds">-</strong></span>
             </div>
             <pre id="report-detail" class="console short"></pre>
           </div>

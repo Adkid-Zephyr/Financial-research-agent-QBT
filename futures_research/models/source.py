@@ -10,6 +10,7 @@ class DataFetchRequest(BaseModel):
     variety_code: str
     variety_name: str
     contract: str
+    contracts: List[str] = Field(default_factory=list)
     target_date: date
     exchange: str
     key_factors: List[str] = Field(default_factory=list)

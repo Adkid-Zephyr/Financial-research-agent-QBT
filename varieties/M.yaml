@@ -13,6 +13,5 @@ key_factors:
 news_keywords:
   - [豆粕, 大豆, 压榨, 美豆, 南美天气, 饲料]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
 prompt_template: default_futures
