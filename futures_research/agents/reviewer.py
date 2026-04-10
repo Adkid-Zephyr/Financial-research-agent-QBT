@@ -67,6 +67,12 @@ async def review_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[st
         blocking_issues.append("存在投资建议性表述")
     if not _has_ai_disclaimer(draft):
         blocking_issues.append("缺少 AI 免责声明")
+    if "Mock" in draft or any("Mock" in str(item) for item in state.get("raw_data", {}).get("sources", [])):
+        blocking_issues.append("包含 mock 数据来源")
+    if "web_search_20250305" in draft or any(
+        "web_search_20250305" in str(item) for item in state.get("raw_data", {}).get("sources", [])
+    ):
+        blocking_issues.append("包含保留中的 web_search 数据来源")
 
     logic_chain = 10.0
     if _section_exists(draft, "## 二、基本面分析"):

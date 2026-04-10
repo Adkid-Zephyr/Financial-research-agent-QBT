@@ -5,11 +5,20 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, Field
 
 from futures_research.models.state import WorkflowState
 from futures_research.storage import ReportRepository, ReportSummary
 
 router = APIRouter()
+
+
+class DeleteReportsRequest(BaseModel):
+    run_ids: List[UUID] = Field(default_factory=list)
+
+
+class DeleteReportsResponse(BaseModel):
+    deleted: int
 
 
 def get_report_repository(request: Request) -> ReportRepository:
@@ -49,3 +58,23 @@ def get_report_detail(
     if state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found.")
     return state
+
+
+@router.delete("/{run_id}", response_model=DeleteReportsResponse)
+def delete_report(
+    run_id: UUID,
+    repository: ReportRepository = Depends(get_report_repository),
+) -> DeleteReportsResponse:
+    deleted = 1 if repository.delete_workflow_state(run_id) else 0
+    if deleted == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found.")
+    return DeleteReportsResponse(deleted=deleted)
+
+
+@router.post("/delete-batch", response_model=DeleteReportsResponse)
+def delete_reports_batch(
+    payload: DeleteReportsRequest,
+    repository: ReportRepository = Depends(get_report_repository),
+) -> DeleteReportsResponse:
+    deleted = repository.delete_workflow_states(payload.run_ids)
+    return DeleteReportsResponse(deleted=deleted)

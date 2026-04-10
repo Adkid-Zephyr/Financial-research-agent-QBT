@@ -26,6 +26,20 @@ def persist_report_artifacts(report: ResearchReport, *, run_id: UUID) -> Researc
     return report
 
 
+def remove_report_artifacts(report: ResearchReport | None) -> None:
+    if report is None:
+        return
+    for raw_path in [report.markdown_path, report.pdf_path]:
+        if not raw_path:
+            continue
+        path = Path(raw_path)
+        try:
+            if path.exists():
+                path.unlink()
+        except FileNotFoundError:
+            continue
+
+
 def _artifact_slug(variety_code: str, symbol: str, run_id: UUID) -> str:
     base = f"{variety_code}_{symbol}_{str(run_id)[:8]}"
     return re.sub(r"[^A-Za-z0-9._-]+", "_", base)

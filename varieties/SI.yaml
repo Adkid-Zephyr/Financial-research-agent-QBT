@@ -13,6 +13,5 @@ key_factors:
 news_keywords:
   - [工业硅, 多晶硅, 有机硅, 开工率, 仓单, 电价]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
 prompt_template: industrial_materials_futures

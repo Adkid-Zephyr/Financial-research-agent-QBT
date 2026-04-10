@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+import os
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -32,12 +34,24 @@ def create_app(repository: Optional[ReportRepository] = None, event_bus: Optiona
                 repository.close()
 
     app = FastAPI(title="Futures Research API", version="0.3.0", lifespan=lifespan)
+    app.state.started_at = datetime.now(UTC)
+    app.state.process_id = os.getpid()
+    app.state.cwd = str(Path.cwd())
     app.state.report_repository = resolved_repository
     app.state.event_bus = resolved_event_bus
     app.state.run_single = run_research
     app.state.run_batch = run_batch_research
     if app.state.report_repository is not None:
         app.state.report_repository.initialize_schema()
+
+    @app.middleware("http")
+    async def disable_cache_for_debug_surfaces(request: Request, call_next):
+        response = await call_next(request)
+        if request.method == "GET":
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
 
     @app.get("/healthz")
     def healthcheck():
@@ -47,6 +61,9 @@ def create_app(repository: Optional[ReportRepository] = None, event_bus: Optiona
             "llm_model": config.LLM_MODEL,
             "llm_base_url": config.ANTHROPIC_BASE_URL or "default",
             "web_search_enabled": config.ENABLE_ANTHROPIC_WEB_SEARCH,
+            "started_at": app.state.started_at,
+            "process_id": app.state.process_id,
+            "cwd": app.state.cwd,
         }
 
     @app.get("/", include_in_schema=False)

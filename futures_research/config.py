@@ -18,9 +18,13 @@ OUTPUT_DIR = BASE_DIR / "outputs"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
+CTP_SNAPSHOT_BASE_URL = os.getenv("CTP_SNAPSHOT_BASE_URL", "http://192.168.152.69:8081")
+CTP_REQUEST_TIMEOUT_SECONDS = float(os.getenv("CTP_REQUEST_TIMEOUT_SECONDS", "5"))
 LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
+ANALYSIS_RENDER_MODE = os.getenv("ANALYSIS_RENDER_MODE", "hybrid").lower()
+REPORT_RENDER_MODE = os.getenv("REPORT_RENDER_MODE", "hybrid").lower()
 ENABLE_ANTHROPIC_WEB_SEARCH = os.getenv("ENABLE_ANTHROPIC_WEB_SEARCH", "true").lower() in {
     "1",
     "true",

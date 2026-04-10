@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from futures_research.data_sources import DataSourceRegistry, MockDataSource, WebSearchSource
+from futures_research.data_sources import CTPSnapshotSource, DataSourceRegistry
 from futures_research.events import EventBus, get_event_bus
 from futures_research.llm import LLMClient
 from futures_research.prompts.loader import PromptRepository
@@ -23,8 +23,7 @@ def build_runtime() -> RuntimeContext:
     variety_registry.scan()
 
     data_source_registry = DataSourceRegistry()
-    data_source_registry.register(MockDataSource())
-    data_source_registry.register(WebSearchSource())
+    data_source_registry.register(CTPSnapshotSource())
 
     return RuntimeContext(
         variety_registry=variety_registry,

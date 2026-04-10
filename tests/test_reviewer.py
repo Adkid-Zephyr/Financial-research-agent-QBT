@@ -14,7 +14,7 @@ class ReviewerTests(unittest.IsolatedAsyncioTestCase):
             "variety": "棉花",
             "target_date": date.today(),
             "report_draft": "# 标题\n必涨。\n本报告由AI自动生成，仅供参考，不构成投资建议。",
-            "raw_data": {"sources": ["Mock"]},
+            "raw_data": {"sources": ["CTP snapshot API"]},
             "review_round": 0,
             "review_history": [],
         }
@@ -58,7 +58,7 @@ class ReviewerTests(unittest.IsolatedAsyncioTestCase):
 
 本报告由AI自动生成，仅供参考，不构成投资建议。
 """.strip(),
-            "raw_data": {"sources": ["Mock"]},
+            "raw_data": {"sources": ["CTP snapshot API"]},
             "review_round": 0,
             "review_history": [],
         }
@@ -104,7 +104,7 @@ ICE 与美元波动温和。（来源：D）
 
 本报告由AI自动生成，仅供参考，不构成投资建议。
 """.strip(),
-            "raw_data": {"sources": ["Mock"]},
+            "raw_data": {"sources": ["CTP snapshot API"]},
             "review_round": 0,
             "review_history": [],
         }
@@ -153,7 +153,7 @@ COMEX 黄金与美元波动温和。（来源：D）
 
 本报告由AI生成，内容仅供参考，不构成任何投资建议。
 """.strip(),
-            "raw_data": {"sources": ["Mock"]},
+            "raw_data": {"sources": ["CTP snapshot API"]},
             "review_round": 0,
             "review_history": [],
         }
@@ -200,7 +200,7 @@ COMEX 黄金与美元波动温和。（来源：D）
 
 本报告由AI辅助生成，内容仅供参考，不构成任何投资建议。
 """.strip(),
-            "raw_data": {"sources": ["Mock"]},
+            "raw_data": {"sources": ["CTP snapshot API"]},
             "review_round": 0,
             "review_history": [],
         }

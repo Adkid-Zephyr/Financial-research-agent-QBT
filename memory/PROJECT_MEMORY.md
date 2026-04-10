@@ -19,7 +19,7 @@
 
 ## 当前决定
 - 切片1只实现线性 LangGraph：aggregate -> analyze -> write -> review。
-- 数据层默认只启用 MockDataSource，但保留 web_search 数据源与 Anthropic tool 接口。
+- 主项目当前已切换到真实数据优先模式：运行时只注册 `ctp_snapshot` 数据源，不再让 `mock` / `web_search_20250305` 进入正式工作流。
 - 切片2采用 SQLAlchemy + PostgreSQL DSN 方式接入存储；未配置 `DATABASE_URL` 时保持工作流可运行但不落库。
 - 切片2只新增工作流后置持久化与 FastAPI 只读查询，不修改任何 Agent 节点逻辑。
 - 切片3新增批量调度入口时，不修改 `run_research()` 签名，不触碰 Agent 逻辑与已有 API 路由。
@@ -34,6 +34,12 @@
 - CLI 入口保持可用，用于人工排障与手工执行；部署态实时订阅优先走 API 触发。
 - 本地手工测试环境默认改为 SQLite 文件库 `sqlite+pysqlite:///./futures_research_local.db`，这样不开 Docker 也能在 UI 中查看报告存储。
 - 当前 LLM 接入已切换为阿里云百炼 Anthropic 兼容端，基础配置为 `ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic`，模型 ID 使用官方名称 `kimi-k2.5`。
+- 当前真实行情接口为 `CTP_SNAPSHOT_BASE_URL=http://192.168.152.69:8081`，稳定查询路径为 `/api/snapshots?instruments=...`。
+- 合约规范化策略已切到“多候选回退 + 最新交易日优先”：
+  - SHFE / DCE / INE 通常优先小写合约
+  - GFEX 需要同时尝试大小写，并按最新交易日优先选中实时快照
+  - CZCE 需要同时尝试全码与短码，例如 `CF2605 -> CF605`
+- 默认分析与写作模式改为 deterministic，避免正文数字被 LLM 脑补；若显式切回 `llm` 模式而又没有 live client，则直接报错，不再静默回退 mock 文案。
 
 ## 实际执行日志
 - 已创建项目脚手架、低代码品种配置扫描器、DataSourceRegistry、MockDataSource、PromptRepository、LangGraph 线性图。
@@ -68,6 +74,14 @@
 - 已修复 reviewer 对免责声明和“存在一定支撑”类表述的误判，支持 `AI生成` / `AI辅助生成` / `人工智能生成` 等变体。
 - 已将 UI 默认批量品种列表示例更新为 `CF,M,AU,AG,CU,AL,LC,SI`，便于直接测试扩展后的品种集。
 - 已完成 Python 3.14.3 适配修补：将 `scheduler.py` 中的 `datetime.utcnow()` 替换为 `datetime.now(UTC)`，并为 SQLAlchemy 仓储补充 `close()`/engine dispose，同时把 FastAPI 应用关闭逻辑切换到 `lifespan`，消除 3.14 下的 `DeprecationWarning` 与 SQLite `ResourceWarning`。
+- `2026-04-10` 排查 8025 端口“像是在跑旧后端”问题后确认：根因不是端口残留，而是当前工作区里的 `futures_research/api/app.py` 与静态前端文件本身尚未包含 `started_at`、前端新版状态卡和事件卡片样式。
+- `2026-04-10` 已为 `GET /healthz` 补充 `started_at`、`process_id`、`cwd` 字段，并为所有 GET 响应加上 `Cache-Control: no-store`，避免浏览器继续缓存旧首页和旧静态资源造成误判。
+- `2026-04-10` 已更新 `futures_research/api/static/` 前端：顶部新增“后端启动时间”卡片，WebSocket 日志改为固定高度、卡片式事件流，报告详情区新增显式当前 `run_id`。
+- `2026-04-10` 已把前端误回退的问题修正：恢复单篇删除、多选删除、报告列表中的生成时间展示，以及详情区的字符数 / 估算 tokens / 审核轮次统计。
+- `2026-04-10` 已在后端补 `DELETE /reports/{run_id}` 与 `POST /reports/delete-batch`，删除时会同步移除本地 markdown / pdf 产物。
+- `2026-04-10` 已把主项目工作区补齐到真实数据版本：新增 `futures_research/data_sources/ctp_snapshot_source.py`，运行时只注册该源；`CF/M/AU/AG/CU/AL/LC/SI` 的 YAML 已全部切到 `ctp_snapshot`。
+- `2026-04-10` `aggregate_node` 已补 `research_workflow` 元信息，包含 `principle`、`analysis_order`、`verified_facts`、`can_write_formal_report`、`blocking_reason`。
+- `2026-04-10` `review_node` 新增硬拦截：若正文或源列表包含 `Mock` 或 `web_search_20250305`，直接记为 blocking issue，避免旧路径混回正式报告。
 
 ## 自测结果
 - `.venv/bin/python run.py --symbol CF`：成功输出完整 Markdown 研报和审核摘要。
@@ -116,6 +130,20 @@
 - `2026-04-02` 执行 `DATABASE_URL='' /tmp/futures-research-py314/bin/python -W error::DeprecationWarning -W error::ResourceWarning -m unittest discover -s tests`：24 个用例全部通过，确认项目代码层面的 3.14 弃用/资源警告已清理。
 - `2026-04-02` 执行 `ANTHROPIC_API_KEY='' ANTHROPIC_BASE_URL='' DATABASE_URL='' /tmp/futures-research-py314/bin/python run.py --symbol CF --target-date 2026-04-02`：CLI 单品种入口成功输出完整研报与审核摘要，但启动阶段仍出现 `langchain_core` 触发的 `Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.` 上游 `UserWarning`。
 - `2026-04-02` 执行 `DATABASE_URL='' .venv/bin/python -m unittest discover -s tests`：Python 3.11.9 主环境回归通过，24 个用例全部通过。
+- `2026-04-10` 执行 `.venv/bin/python -m unittest tests.test_api`：6 个用例全部通过，覆盖新版 `/healthz` 字段与首页禁缓存头。
+- `2026-04-10` 临时启动 `uvicorn futures_research.api.app:app --port 8031` 并验证：
+  - `GET /healthz` 返回 `started_at` / `process_id` / `cwd`
+  - `GET /` 已包含 `started-at-status`、`current-run-id`、`console-stream`
+  - `GET /static/app.js` 返回 `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`
+- `2026-04-10` 执行 `.venv/bin/python deploy/verify_websocket.py --url 'ws://127.0.0.1:8031/ws/events?channel=run' --expect 4`，并配合 `POST /runs`：成功收到 `subscribed -> run_started -> step_started(aggregate) -> step_started(analyze)`。
+- `2026-04-10` 已替换 8025 端口上的旧 `uvicorn` 进程，当前监听 PID 为新进程；`GET http://127.0.0.1:8025/healthz` 已返回新版字段。
+- `2026-04-10` 执行 `.venv/bin/python deploy/verify_websocket.py --url 'ws://127.0.0.1:8025/ws/events?channel=run' --expect 4`，并配合 `POST /runs`：确认正式测试端口的 WebSocket 路由可用。
+- `2026-04-10` 执行 `.venv/bin/python run.py --symbol CF --target-date 2026-04-10`：新报告正文只包含 `CTP snapshot API` 来源，棉花主数据合约自动解析为 `CF605`，不再出现 `MockExchangeBulletin`。
+- `2026-04-10` 执行 `.venv/bin/python run.py --symbol LC --target-date 2026-04-10`：主数据合约自动解析为 `lc2607`，正文只包含实时快照数字和数据缺口说明。
+- `2026-04-10` 执行 `.venv/bin/python run.py --symbols AU,AG,M,SI --target-date 2026-04-10 --concurrency 2`：4 个品种全部通过，最新生成 Markdown 均只包含 `CTP snapshot API` 来源。
+- `2026-04-10` 执行 `.venv/bin/python -m unittest discover -s tests`：24 个用例全部通过。
+- `2026-04-10` 已再次重启 `127.0.0.1:8025` 上的 uvicorn，新进程 PID 为 `69853`；`POST /runs` + `WS /ws/events?channel=run` 已在新代码下联调通过。
+- `2026-04-10` 执行 `DELETE /reports/{run_id}` 真机验收：成功删除一篇刚生成的测试报告，列表首项已切换到下一条记录。
 
 ## 接口摘要
 - 切片1详见 `memory/SLICE_01_HANDOFF.md`。

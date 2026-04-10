@@ -80,6 +80,8 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["symbol"], "CF2609")
         self.assertTrue(payload[0]["review_passed"])
+        self.assertIn("generated_at", payload[0])
+        self.assertIn("estimated_tokens", payload[0])
 
     def test_get_report_detail(self):
         response = self.client.get(f"/reports/{self.sample_state.run_id}")
@@ -93,6 +95,7 @@ class ApiTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("期货投研 Agent 测试控制台", response.text)
+        self.assertEqual(response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
 
     def test_healthz_exposes_llm_status(self):
         response = self.client.get("/healthz")
@@ -100,6 +103,8 @@ class ApiTests(unittest.TestCase):
         payload = response.json()
         self.assertIn("llm_model", payload)
         self.assertIn("llm_base_url", payload)
+        self.assertIn("started_at", payload)
+        self.assertIn("process_id", payload)
 
     def test_trigger_single_run(self):
         called = threading.Event()
@@ -167,6 +172,25 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(received["concurrency"], 3)
         finally:
             client.close()
+
+    def test_delete_single_report(self):
+        response = self.client.delete(f"/reports/{self.sample_state.run_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["deleted"], 1)
+        self.assertIsNone(self.repository.get_workflow_state(self.sample_state.run_id))
+
+    def test_delete_reports_batch(self):
+        second_state = build_sample_state()
+        self.repository.save_workflow_state(second_state)
+
+        response = self.client.post(
+            "/reports/delete-batch",
+            json={"run_ids": [str(self.sample_state.run_id), str(second_state.run_id)]},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["deleted"], 2)
+        self.assertIsNone(self.repository.get_workflow_state(self.sample_state.run_id))
+        self.assertIsNone(self.repository.get_workflow_state(second_state.run_id))
 
 
 if __name__ == "__main__":
