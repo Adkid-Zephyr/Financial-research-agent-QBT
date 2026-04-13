@@ -20,6 +20,10 @@
 ## 当前决定
 - 切片1只实现线性 LangGraph：aggregate -> analyze -> write -> review。
 - 主项目当前已切换到真实数据优先模式：运行时只注册 `ctp_snapshot` 数据源，不再让 `mock` / `web_search_20250305` 进入正式工作流。
+- `2026-04-13` 已在 Phase 1 范围内补充可开关的外盘/宏观与商品基本面结构化数据源：`yahoo_market` 与 `akshare_commodity`。默认关闭，显式设置 `ENABLE_YAHOO_MARKET_SOURCE=true` / `ENABLE_AKSHARE_COMMODITY_SOURCE=true` 后才注册运行。
+- `yahoo_market` 只用于外盘/宏观辅助事实，不作为交易所正式行情源；当前 AU/AG 配置覆盖 COMEX 金银、美元指数、美国 10 年期国债收益率、USD/CNY。
+- `akshare_commodity` 只接入可核验结构化字段；当前 AU/AG 配置覆盖生意社现货与基差、上海黄金交易所现货日线、东方财富 COMEX 库存。SHFE/DCE 仓单接口在本轮探针中不稳定，未纳入正式正文。
+- reviewer 来源白名单已扩展到 `Yahoo Finance via yfinance` 与 `AkShare`，但仍硬拦截 `Mock` 与 `web_search_20250305`；外盘/基本面数字若缺少对应来源标注会被 blocking。
 - 切片2采用 SQLAlchemy + PostgreSQL DSN 方式接入存储；未配置 `DATABASE_URL` 时保持工作流可运行但不落库。
 - 切片2只新增工作流后置持久化与 FastAPI 只读查询，不修改任何 Agent 节点逻辑。
 - 切片3新增批量调度入口时，不修改 `run_research()` 签名，不触碰 Agent 逻辑与已有 API 路由。
@@ -82,6 +86,15 @@
 - `2026-04-10` 已把主项目工作区补齐到真实数据版本：新增 `futures_research/data_sources/ctp_snapshot_source.py`，运行时只注册该源；`CF/M/AU/AG/CU/AL/LC/SI` 的 YAML 已全部切到 `ctp_snapshot`。
 - `2026-04-10` `aggregate_node` 已补 `research_workflow` 元信息，包含 `principle`、`analysis_order`、`verified_facts`、`can_write_formal_report`、`blocking_reason`。
 - `2026-04-10` `review_node` 新增硬拦截：若正文或源列表包含 `Mock` 或 `web_search_20250305`，直接记为 blocking issue，避免旧路径混回正式报告。
+- `2026-04-13` 已扩展数据源配置接口：`DataSourceConfig` 支持 `params`，`DataSourceAdapter.fetch()` 支持可选参数，`SourcePayload` 支持 `data_gaps`，`DataSourceRegistry.fetch_many()` 可按 YAML 配置传参。
+- `2026-04-13` 新增 `futures_research/data_sources/yahoo_market_source.py`，使用 `yfinance` 拉取 Yahoo Finance 结构化日线行情；失败、缺依赖、空数据或过期数据只进入 `data_gaps`，不阻断 CTP 主流程。
+- `2026-04-13` 新增 `futures_research/data_sources/akshare_commodity_source.py`，使用 `akshare` 拉取商品基本面结构化数据；当前实现模块包括 `spot_basis`、`sge_spot`、`comex_inventory`。
+- `2026-04-13` `aggregate_node` 新增 `raw_data.external_market_facts` 与 `raw_data.fundamental_facts`，并在 CTP 快照交易日与目标日期不一致时，不再把 CTP highlights 放入 `verified_facts`。
+- `2026-04-13` `analyzer` 的 hybrid fact pack 已加入 `external_market_facts` 与 `fundamental_facts`，LLM 仍禁止新增数字、日期、来源、机构名或网址。
+- `2026-04-13` 修复 hybrid analyzer 对 LLM JSON 列表长度的脆弱依赖：`key_factor_views` 会规范为 4 条、`risk_views` 会规范为 3 条，缺失项只用不含数字和来源标签的确定性兜底文本补齐，避免 `_render_analysis_markdown` 因短列表 `IndexError` 中断。
+- `2026-04-13` `writer` 已增强“国际市场”与“基本面分析”：外盘/宏观数字由程序嵌入，基本面新增“现货与基差”段，COMEX 库存写入“库存与持仓”；若 CTP 交易日不匹配，行情回顾中的 CTP 价格/持仓/成交量写为“暂无可核验数据”。
+- `2026-04-13` `writer` 对 `analysis_brief.key_factor_views` / `risk_views` 改为安全读取，即使旧状态或异常 LLM 输出里列表不足，也不会再在确定性正文生成阶段崩溃。
+- `2026-04-13` AU/AG YAML 已加入 `yahoo_market` 与 `akshare_commodity` 配置；其他品种暂不打开 AkShare 仓单/库存，后续需要逐交易所逐接口验收。
 
 ## 自测结果
 - `.venv/bin/python run.py --symbol CF`：成功输出完整 Markdown 研报和审核摘要。
@@ -144,6 +157,16 @@
 - `2026-04-10` 执行 `.venv/bin/python -m unittest discover -s tests`：24 个用例全部通过。
 - `2026-04-10` 已再次重启 `127.0.0.1:8025` 上的 uvicorn，新进程 PID 为 `69853`；`POST /runs` + `WS /ws/events?channel=run` 已在新代码下联调通过。
 - `2026-04-10` 执行 `DELETE /reports/{run_id}` 真机验收：成功删除一篇刚生成的测试报告，列表首项已切换到下一条记录。
+- `2026-04-13` 执行 `.venv/bin/python -m pip install 'yfinance>=0.2.60'` 与 `.venv/bin/python -m pip install 'akshare>=1.17.0'`，当前 `.venv` 已具备 yfinance 与 AkShare。
+- `2026-04-13` yfinance 探针成功拉取 `GC=F`、`SI=F`、`DX-Y.NYB`、`^TNX`、`CNY=X` 日线；确认 yfinance 可补外盘/宏观行情，但不适合补真实商品库存、仓单、基差、开工率或供需平衡表。
+- `2026-04-13` AkShare 探针确认 `futures_spot_price` 可返回 AU/AG/CU/AL/CF/M/LC/SI 的现货价格、主力合约、基差、基差率；`spot_hist_sge` 可返回上金所 AU/AG 现货日线；`futures_comex_inventory` 可返回 COMEX 金银库存；CZCE/GFEX 仓单接口可用，SHFE/DCE 仓单接口本轮返回 JSON 解析错误，暂不接正文。
+- `2026-04-13` 执行 `.venv/bin/python -m unittest discover -s tests`：37 个用例全部通过，新增覆盖 yfinance adapter、AkShare adapter、来源白名单、未登记来源拦截、hybrid writer 确定性嵌入外盘/基本面数字。
+- `2026-04-13` 执行 `ENABLE_YAHOO_MARKET_SOURCE=true ENABLE_AKSHARE_COMMODITY_SOURCE=true ANTHROPIC_API_KEY='' ANTHROPIC_BASE_URL='' .venv/bin/python run.py --symbol AU --target-date 2026-04-10`：成功生成包含 yfinance 外盘/宏观与 AkShare 现货基差/上金所现货/COMEX库存的新报告；最新样稿路径为 `outputs/2026-04-10/AU_AU2606_5e72e1c8.md` 与 `.pdf`。
+- `2026-04-13` 验证目标日期 `2026-04-10` 与 CTP 最新快照交易日 `2026-04-13` 不一致时，报告不会把 CTP 价格、持仓量、成交量写成目标日事实，只写“暂无可核验数据”，同时允许 yfinance/AkShare 按各自可得日期引用。
+- `2026-04-13` 执行 `.venv/bin/python -m unittest tests.test_workflow`：10 个用例全部通过，新增复现用例覆盖 live hybrid LLM 只返回 2 条 `key_factor_views` 和 1 条 `risk_views` 时仍能完成工作流。
+- `2026-04-13` 执行 `.venv/bin/python -m unittest discover -s tests`：38 个用例全部通过。
+- `2026-04-13` 执行 `ENABLE_YAHOO_MARKET_SOURCE=true ENABLE_AKSHARE_COMMODITY_SOURCE=true .venv/bin/python run.py --symbol AU --target-date 2026-04-10`：成功生成包含 Yahoo Finance 与 AkShare 结构化事实的 AU 报告，审核通过，确认修复后不会再因 analyzer 短列表崩溃。
+- `2026-04-13` 已重启本地 `127.0.0.1:8025` FastAPI 服务到新代码，启用 `ENABLE_YAHOO_MARKET_SOURCE=true` 与 `ENABLE_AKSHARE_COMMODITY_SOURCE=true`；`GET /healthz` 返回 `web_search_enabled=false`，`POST /runs` 触发 AU 后台运行成功落库，最新报告数据源包含 CTP、Yahoo Finance 与 AkShare。
 
 ## 接口摘要
 - 切片1详见 `memory/SLICE_01_HANDOFF.md`。
@@ -154,4 +177,4 @@
 - 部署增强详见 `memory/DEPLOYMENT_MVP_HANDOFF.md`。
 
 ## 新线程接续提示词
-- Phase 1 已完成；当前已补上 Docker Compose MVP 部署文件与同进程触发 API。继续工作前请先阅读 `memory/PROJECT_MEMORY.md` 和 `memory/DEPLOYMENT_MVP_HANDOFF.md`。如果 Docker 已安装，优先完成真实 `docker compose up`、PostgreSQL 持久化、Nginx 代理与 WebSocket 的容器态验收；如果继续扩展生产化，则在现有基础上推进 HTTPS、鉴权、监控告警和运维脚本。
+- Phase 1 已完成；当前已补上 Docker Compose MVP 部署文件、同进程触发 API、真实 CTP 快照链路、hybrid LLM 写作约束、yfinance 外盘/宏观结构化数据源、AkShare 商品基本面结构化数据源。继续工作前请先阅读 `memory/PROJECT_MEMORY.md`、`README.md` 和必要时的 `memory/DEPLOYMENT_MVP_HANDOFF.md`。

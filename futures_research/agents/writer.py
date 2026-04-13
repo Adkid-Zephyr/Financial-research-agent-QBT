@@ -92,6 +92,12 @@ def _spread_comment(spread: Optional[float]) -> str:
     return "近远月价差接近持平，期限结构信号中性。"
 
 
+def _safe_list_item(value: Any, index: int, fallback: str) -> str:
+    if not isinstance(value, list) or len(value) <= index or not isinstance(value[index], str):
+        return fallback
+    return value[index]
+
+
 def _render_international_view(raw_data: dict, fallback_view: str) -> str:
     external_items = _external_market_items(raw_data)
     if not external_items:
@@ -283,6 +289,28 @@ def _build_deterministic_report(
         inventory_metric_sentence,
     )
     spot_basis_view = _render_spot_basis_view(raw_data)
+    key_factor_views = analysis_brief.get("key_factor_views")
+    risk_views = analysis_brief.get("risk_views")
+    factor_view_1 = _safe_list_item(key_factor_views, 0, reasons[0] if reasons else view_reason)
+    factor_view_2 = _safe_list_item(key_factor_views, 1, _spread_comment(spread_value))
+    factor_view_3 = _safe_list_item(key_factor_views, 2, "交易活跃度说明当前盘面并非无量状态。")
+    factor_view_4 = _safe_list_item(
+        key_factor_views,
+        3,
+        "外盘、宏观和部分基本面数据已有结构化补充，但供需平衡等缺口仍需单独披露。"
+        if external_items or fundamental_items
+        else "研究边界需要被明确写出，不能把缺口伪装成结论。",
+    )
+    risk_2 = _safe_list_item(
+        risk_views,
+        1,
+        "供给、需求、库存和国际联动等结构化接口尚未补齐前，当前观点仍应理解为盘面判断，而不是完整产业链结论。",
+    )
+    risk_3 = _safe_list_item(
+        risk_views,
+        2,
+        "单日盘面强弱可能受资金和期限结构扰动影响，若后续真实基本面数据与盘面信号背离，观点需要及时修正。",
+    )
 
     return """
 # {variety}期货日报 — {symbol} [{target_date}]
@@ -367,12 +395,12 @@ def _build_deterministic_report(
         ),
         inventory_view=inventory_view,
         international_view=international_view,
-        factor_view_1=(analysis_brief.get("key_factor_views") or [])[0] if analysis_brief.get("key_factor_views") else (reasons[0] if reasons else view_reason),
-        factor_view_2=(analysis_brief.get("key_factor_views") or [None, _spread_comment(spread_value)])[1] if analysis_brief.get("key_factor_views") else _spread_comment(spread_value),
-        factor_view_3=(analysis_brief.get("key_factor_views") or [None, None, "交易活跃度说明当前盘面并非无量状态。"])[2] if analysis_brief.get("key_factor_views") else "交易活跃度说明当前盘面并非无量状态。",
-        factor_view_4=(analysis_brief.get("key_factor_views") or [None, None, None, "研究边界需要被明确写出，不能把缺口伪装成结论。"])[3] if analysis_brief.get("key_factor_views") else ("外盘、宏观和部分基本面数据已有结构化补充，但供需平衡等缺口仍需单独披露。" if external_items or fundamental_items else "研究边界需要被明确写出，不能把缺口伪装成结论。"),
-        risk_2=(analysis_brief.get("risk_views") or [None, "供给、需求、库存和国际联动等结构化接口尚未补齐前，当前观点仍应理解为盘面判断，而不是完整产业链结论。"])[1] if analysis_brief.get("risk_views") else "供给、需求、库存和国际联动等结构化接口尚未补齐前，当前观点仍应理解为盘面判断，而不是完整产业链结论。",
-        risk_3=(analysis_brief.get("risk_views") or [None, None, "单日盘面强弱可能受资金和期限结构扰动影响，若后续真实基本面数据与盘面信号背离，观点需要及时修正。"])[2] if analysis_brief.get("risk_views") else "单日盘面强弱可能受资金和期限结构扰动影响，若后续真实基本面数据与盘面信号背离，观点需要及时修正。",
+        factor_view_1=factor_view_1,
+        factor_view_2=factor_view_2,
+        factor_view_3=factor_view_3,
+        factor_view_4=factor_view_4,
+        risk_2=risk_2,
+        risk_3=risk_3,
         main_factor=main_factor,
         second_factor=second_factor,
         third_factor=third_factor,

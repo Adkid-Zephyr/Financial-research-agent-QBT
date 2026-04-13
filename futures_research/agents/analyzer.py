@@ -14,6 +14,19 @@ from futures_research.prompts.analyzer_prompt import (
 from futures_research.runtime import RuntimeContext
 
 
+_HYBRID_KEY_FACTOR_FALLBACKS = [
+    "盘面涨跌反映日内资金定价方向。",
+    "期限结构信号需要结合近远月强弱继续观察。",
+    "交易活跃度说明盘面并非无量波动。",
+    "研究边界需要被明确写出，不能把缺口伪装成结论。",
+]
+_HYBRID_RISK_FALLBACKS = [
+    "旧快照不能替代今日事实。",
+    "缺少基本面数字时，盘面判断不能等同于产业链结论。",
+    "若后续真实基本面数据与盘面信号背离，观点需要及时修正。",
+]
+
+
 def _load_review_result(payload: Any) -> Optional[ReviewResult]:
     if payload is None:
         return None
@@ -177,6 +190,37 @@ def _extract_json_object(text: str) -> Dict[str, Any]:
     return json.loads(candidate[start : end + 1])
 
 
+def _validate_hybrid_text(value: Any) -> str:
+    if not isinstance(value, str):
+        raise ValueError("Hybrid analysis payload contains non-string text field.")
+    if re.search(r"\d", value):
+        raise ValueError("Hybrid analysis payload must not contain digits.")
+    if "来源" in value or "CTP" in value or "http" in value:
+        raise ValueError("Hybrid analysis payload must not contain source labels.")
+    return value
+
+
+def _normalize_hybrid_text_list(
+    value: Any,
+    field_name: str,
+    expected_length: int,
+    fallback_items: list[str],
+) -> list[str]:
+    if isinstance(value, str):
+        items = [value]
+    elif isinstance(value, list):
+        items = value
+    else:
+        raise ValueError("Hybrid analysis payload field must be a list: %s" % field_name)
+
+    normalized = [_validate_hybrid_text(item) for item in items[:expected_length]]
+    for fallback_item in fallback_items[len(normalized) : expected_length]:
+        normalized.append(_validate_hybrid_text(fallback_item))
+    if len(normalized) != expected_length:
+        raise ValueError("Hybrid analysis payload field has insufficient fallbacks: %s" % field_name)
+    return normalized
+
+
 def _validate_hybrid_brief(payload: Dict[str, Any]) -> Dict[str, Any]:
     required_keys = [
         "sentiment",
@@ -193,26 +237,31 @@ def _validate_hybrid_brief(payload: Dict[str, Any]) -> Dict[str, Any]:
     for key in required_keys:
         if key not in payload:
             raise ValueError("Hybrid analysis payload missing key: %s" % key)
-    text_fields = [
-        payload["sentiment"],
-        payload["confidence"],
-        payload["core_view"],
-        payload["supply_view"],
-        payload["demand_view"],
-        payload["inventory_view"],
-        payload["international_view"],
-        payload["event_view"],
-        *payload.get("key_factor_views", []),
-        *payload.get("risk_views", []),
-    ]
-    for value in text_fields:
-        if not isinstance(value, str):
-            raise ValueError("Hybrid analysis payload contains non-string text field.")
-        if re.search(r"\d", value):
-            raise ValueError("Hybrid analysis payload must not contain digits.")
-        if "来源" in value or "CTP" in value or "http" in value:
-            raise ValueError("Hybrid analysis payload must not contain source labels.")
-    return payload
+    normalized = dict(payload)
+    for key in [
+        "sentiment",
+        "confidence",
+        "core_view",
+        "supply_view",
+        "demand_view",
+        "inventory_view",
+        "international_view",
+        "event_view",
+    ]:
+        normalized[key] = _validate_hybrid_text(payload[key])
+    normalized["key_factor_views"] = _normalize_hybrid_text_list(
+        payload["key_factor_views"],
+        "key_factor_views",
+        4,
+        _HYBRID_KEY_FACTOR_FALLBACKS,
+    )
+    normalized["risk_views"] = _normalize_hybrid_text_list(
+        payload["risk_views"],
+        "risk_views",
+        3,
+        _HYBRID_RISK_FALLBACKS,
+    )
+    return normalized
 
 
 def _render_analysis_markdown(brief: Dict[str, Any], state: Dict[str, Any]) -> str:

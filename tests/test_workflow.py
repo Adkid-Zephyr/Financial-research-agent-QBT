@@ -192,6 +192,31 @@ class HybridLLMClient:
         raise AssertionError("Hybrid mode should not call generate_report for deterministic writer path.")
 
 
+class ShortHybridLLMClient(HybridLLMClient):
+    async def generate_analysis(self, prompt, context):
+        del prompt
+        self.analysis_contexts.append(context)
+        return """
+{
+  "sentiment": "偏多",
+  "confidence": "中",
+  "core_view": "盘面定价偏强，但仍需保留边界意识。",
+  "supply_view": "供给侧仍需等待直接验证数据，当前只能保留框架观察。",
+  "demand_view": "需求端缺少直接验证数据，暂不扩写为确定结论。",
+  "inventory_view": "库存逻辑仍待真实数据补齐，当前只能确认盘面活跃度。",
+  "international_view": "国际联动先保留框架提醒，不展开数值判断。",
+  "event_view": "最新快照与期限结构已经可核验，其余事件仍待补充。",
+  "key_factor_views": [
+    "盘面涨跌说明资金定价偏强。",
+    "期限结构提示近端仍带谨慎色彩。"
+  ],
+  "risk_views": [
+    "旧快照不能替代今日事实。"
+  ]
+}
+""".strip()
+
+
 class FakeCTPSource(DataSourceAdapter):
     source_type = "ctp_snapshot"
 
@@ -427,6 +452,34 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("external_market_facts", fake_llm.analysis_contexts[0]["fact_pack"])
         self.assertIn("COMEX黄金", final_state.report_draft)
         self.assertIn("2400美元/盎司", final_state.report_draft)
+        self.assertIn("Yahoo Finance via yfinance", final_state.report_draft)
+        self.assertTrue(final_state.review_result.passed)
+
+    def test_hybrid_mode_pads_short_llm_factor_lists(self):
+        runtime = build_runtime()
+        registry = DataSourceRegistry()
+        registry.register(FakeCTPSource())
+        registry.register(FakeYahooSource())
+        runtime.data_source_registry = registry
+        fake_llm = ShortHybridLLMClient()
+        runtime.llm_client = fake_llm
+        workflow = build_workflow(runtime)
+
+        initial_state = WorkflowState(
+            symbol="AU2606",
+            variety_code="AU",
+            variety="沪金",
+            target_date=date(2026, 4, 10),
+            max_review_rounds=2,
+        )
+        with patch.object(config, "ANALYSIS_RENDER_MODE", "hybrid"), patch.object(config, "REPORT_RENDER_MODE", "hybrid"):
+            result = asyncio.run(workflow.ainvoke(initial_state.model_dump()))
+        final_state = WorkflowState.model_validate(result)
+
+        self.assertEqual(len(fake_llm.analysis_contexts), 1)
+        self.assertEqual(len(final_state.raw_data["analysis_brief"]["key_factor_views"]), 4)
+        self.assertEqual(len(final_state.raw_data["analysis_brief"]["risk_views"]), 3)
+        self.assertIn("研究边界需要被明确写出", final_state.report_draft)
         self.assertIn("Yahoo Finance via yfinance", final_state.report_draft)
         self.assertTrue(final_state.review_result.passed)
 
