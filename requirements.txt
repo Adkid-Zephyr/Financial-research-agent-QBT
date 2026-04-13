@@ -10,3 +10,5 @@ SQLAlchemy>=2.0.0
 urllib3<2
 uvicorn>=0.30.0
 websockets>=12.0
+yfinance>=0.2.60
+akshare>=1.18.0

@@ -28,6 +28,25 @@ def _snapshot(raw_data: dict, role: str) -> dict:
     return {}
 
 
+def _external_market_items(raw_data: dict) -> list[dict]:
+    return [
+        item
+        for item in raw_data.get("external_market_facts", [])
+        if item.get("item_type") == "external_market" and item.get("stale") != "true"
+    ]
+
+
+def _fundamental_items(raw_data: dict, item_type: str | None = None) -> list[dict]:
+    items = [
+        item
+        for item in raw_data.get("fundamental_facts", [])
+        if item.get("stale") != "true"
+    ]
+    if item_type is not None:
+        items = [item for item in items if item.get("item_type") == item_type]
+    return items
+
+
 def _parse_number(value: Any) -> Optional[float]:
     if value is None:
         return None
@@ -73,6 +92,86 @@ def _spread_comment(spread: Optional[float]) -> str:
     return "近远月价差接近持平，期限结构信号中性。"
 
 
+def _render_international_view(raw_data: dict, fallback_view: str) -> str:
+    external_items = _external_market_items(raw_data)
+    if not external_items:
+        return "{view}（来源：数据覆盖范围说明）".format(view=fallback_view)
+    lines = []
+    for index, item in enumerate(external_items, start=1):
+        unit = item.get("unit") or ""
+        close = "{value}{unit}".format(value=item.get("close", "暂无"), unit=unit) if item.get("close") != "暂无" else "暂无"
+        change = "{value}{unit}".format(value=item.get("change", "暂无"), unit=unit) if item.get("change") != "暂无" else "暂无"
+        lines.append(
+            "{index}. {name}（{ticker}）截至 {as_of_date} 收盘价 {close}，涨跌 {change}，涨跌幅 {change_pct}。".format(
+                index=index,
+                name=item.get("name") or "外盘资产",
+                ticker=item.get("ticker") or "暂无",
+                as_of_date=item.get("as_of_date") or "暂无",
+                close=close,
+                change=change,
+                change_pct=item.get("change_pct") or "暂无",
+            )
+        )
+    return "{view}\n{lines}\n上述外盘和宏观字段按可得交易日引用，不写作今日事实。（来源：Yahoo Finance via yfinance）".format(
+        view=fallback_view,
+        lines="\n".join(lines),
+    )
+
+
+def _render_spot_basis_view(raw_data: dict) -> str:
+    lines = []
+    for item in _fundamental_items(raw_data, "spot_basis"):
+        lines.append(
+            "{name}截至 {as_of_date} 现货价格 {spot_price}，主力合约 {contract} 对应基差 {basis}，基差率 {basis_rate}。".format(
+                name=item.get("name") or "现货基差",
+                as_of_date=item.get("as_of_date") or "暂无",
+                spot_price=item.get("spot_price") or "暂无",
+                contract=item.get("dominant_contract") or "暂无",
+                basis=item.get("dom_basis") or "暂无",
+                basis_rate=item.get("dom_basis_rate") or "暂无",
+            )
+        )
+    for item in _fundamental_items(raw_data, "domestic_spot"):
+        unit = item.get("unit") or ""
+        close = "{value}{unit}".format(value=item.get("close", "暂无"), unit=unit) if item.get("close") != "暂无" else "暂无"
+        low = "{value}{unit}".format(value=item.get("low", "暂无"), unit=unit) if item.get("low") != "暂无" else "暂无"
+        high = "{value}{unit}".format(value=item.get("high", "暂无"), unit=unit) if item.get("high") != "暂无" else "暂无"
+        lines.append(
+            "{name}截至 {as_of_date} 收盘价 {close}，日内区间 {low}-{high}。".format(
+                name=item.get("name") or "现货行情",
+                as_of_date=item.get("as_of_date") or "暂无",
+                close=close,
+                low=low,
+                high=high,
+            )
+        )
+    if not lines:
+        return "现货价格、基差和国内现货行情暂无可核验数据。（来源：数据覆盖范围说明）"
+    return "{lines}（来源：AkShare structured commodity data）".format(lines="\n".join(lines))
+
+
+def _render_inventory_view(raw_data: dict, fallback_view: str, inventory_metric_sentence: str) -> str:
+    lines = []
+    for item in _fundamental_items(raw_data, "inventory"):
+        lines.append(
+            "{name}截至 {as_of_date} 库存 {inventory_ton} 吨。".format(
+                name=item.get("name") or "库存",
+                as_of_date=item.get("as_of_date") or "暂无",
+                inventory_ton=item.get("inventory_ton") or "暂无",
+            )
+        )
+    if lines:
+        return "{fallback} {inventory_metric_sentence}\n{lines}（来源：AkShare structured commodity data）".format(
+            fallback=fallback_view,
+            inventory_metric_sentence=inventory_metric_sentence,
+            lines="\n".join(lines),
+        )
+    return "{fallback} {inventory_metric_sentence}（来源：CTP snapshot API）".format(
+        fallback=fallback_view,
+        inventory_metric_sentence=inventory_metric_sentence,
+    )
+
+
 def _build_deterministic_report(
     state: Dict[str, Any],
     variety_definition: VarietyDefinition,
@@ -89,15 +188,19 @@ def _build_deterministic_report(
     market_context = raw_data.get("market_context", "")
     analysis_result = state.get("analysis_result", "")
     analysis_brief = raw_data.get("analysis_brief", {})
+    external_items = _external_market_items(raw_data)
+    fundamental_items = _fundamental_items(raw_data)
+    can_write_formal_report = workflow.get("can_write_formal_report", False)
 
-    price = metrics.get("主力合约参考价", "暂无")
-    bid = metrics.get("主力合约买一", "暂无")
-    ask = metrics.get("主力合约卖一", "暂无")
-    change = metrics.get("主力合约涨跌", "暂无")
-    change_pct_text = metrics.get("主力合约涨跌幅", "暂无")
-    open_interest = metrics.get("主力合约持仓量", "暂无")
-    volume = metrics.get("主力合约成交量", "暂无")
-    spread_text = metrics.get("近月-远月价差", "暂无")
+    ctp_metrics = metrics if can_write_formal_report else {}
+    price = ctp_metrics.get("主力合约参考价", "暂无可核验数据")
+    bid = ctp_metrics.get("主力合约买一", "暂无可核验数据")
+    ask = ctp_metrics.get("主力合约卖一", "暂无可核验数据")
+    change = ctp_metrics.get("主力合约涨跌", "暂无可核验数据")
+    change_pct_text = ctp_metrics.get("主力合约涨跌幅", "暂无可核验数据")
+    open_interest = ctp_metrics.get("主力合约持仓量", "暂无可核验数据")
+    volume = ctp_metrics.get("主力合约成交量", "暂无可核验数据")
+    spread_text = ctp_metrics.get("近月-远月价差", "暂无可核验数据")
     spread_value = _parse_number(spread_text)
     sentiment, confidence, view_reason, reasons = _infer_sentiment(_parse_number(change_pct_text), spread_value)
     if analysis_brief:
@@ -111,7 +214,6 @@ def _build_deterministic_report(
     if review_result and not review_result.passed:
         revision_note = "> **修订说明**：本轮已根据审核反馈重新核对来源与结构，但所有数字仍仅来自真实接口返回。\n\n"
 
-    can_write_formal_report = workflow.get("can_write_formal_report", False)
     if can_write_formal_report:
         core_view = analysis_brief.get(
             "core_view",
@@ -135,22 +237,52 @@ def _build_deterministic_report(
     info_lines = "\n".join(
         "1. {gap}".format(gap=gap) for gap in data_gaps[:4]
     ) or "1. 当前无额外待补充项。"
-    news_line = (
-        "1. 主数据合约 {instrument_id} 最新更新时间为 {update_time}，交易日为 {trading_day}。".format(
+    if can_write_formal_report and primary:
+        news_line = "1. 主数据合约 {instrument_id} 最新更新时间为 {update_time}，交易日为 {trading_day}。".format(
             instrument_id=primary.get("instrument_id") or metrics.get("主数据合约ID", "暂无"),
             update_time=primary.get("update_time") or metrics.get("主力合约更新时间", "暂无"),
             trading_day=primary.get("trading_day") or metrics.get("主力合约交易日", "暂无"),
         )
-        if primary
-        else "1. 当前未获取到目标合约实时快照。"
-    )
-    if secondary:
+    elif primary:
+        news_line = (
+            "1. 当前未获取到与目标日期一致的目标合约实时快照；最新可得快照交易日为 {trading_day}，不用于本日盘面结论。"
+        ).format(trading_day=primary.get("trading_day") or "未知")
+    else:
+        news_line = "1. 当前未获取到目标合约实时快照。"
+    if can_write_formal_report and secondary:
         news_line += "\n2. 次数据合约 {instrument_id} 可用于观察期限结构，当前价差为 {spread}。".format(
             instrument_id=secondary.get("instrument_id") or metrics.get("次数据合约ID", "暂无"),
             spread=spread_text,
         )
     else:
         news_line += "\n2. 当前未获取到次合约实时快照，期限结构判断有限。"
+
+    international_view = _render_international_view(
+        raw_data,
+        analysis_brief.get(
+            "international_view",
+            "模板上需要重点跟踪 {third_factor}。不过当前尚未接入国际盘、汇率与海外供需结构化接口，因此国际联动部分只保留框架提醒，不展开数值化判断。".format(
+                third_factor=third_factor
+            ),
+        ),
+    )
+    inventory_metric_sentence = (
+        "当前可核验盘面字段包括持仓量 {open_interest}、成交量 {volume}。".format(
+            open_interest=open_interest,
+            volume=volume,
+        )
+        if can_write_formal_report
+        else "目标日期一致的持仓量、成交量暂无可核验数据。"
+    )
+    inventory_view = _render_inventory_view(
+        raw_data,
+        analysis_brief.get(
+            "inventory_view",
+            "当前盘面活跃度已有事实基础，但库存、仓单与现货基差尚未接入，因此库存逻辑暂时不能写成“去库”或“累库”判断。",
+        ),
+        inventory_metric_sentence,
+    )
+    spot_basis_view = _render_spot_basis_view(raw_data)
 
     return """
 # {variety}期货日报 — {symbol} [{target_date}]
@@ -168,11 +300,13 @@ def _build_deterministic_report(
 {supply_view}（来源：CTP snapshot API 覆盖范围说明）
 ### 需求端
 {demand_view}（来源：CTP snapshot API 覆盖范围说明）
+### 现货与基差
+{spot_basis_view}
 ### 库存与持仓
-{inventory_view} 当前可核验盘面字段包括持仓量 {open_interest}、成交量 {volume}。（来源：CTP snapshot API）
+{inventory_view}
 
 ## 三、国际市场
-{international_view}（来源：数据覆盖范围说明）
+{international_view}
 
 ## 四、近期重要资讯
 {news_line}
@@ -216,6 +350,7 @@ def _build_deterministic_report(
         open_interest=open_interest,
         volume=volume,
         news_line=news_line,
+        spot_basis_view=spot_basis_view,
         spread=spread_text,
         spread_comment=_spread_comment(spread_value),
         supply_view=analysis_brief.get(
@@ -230,20 +365,12 @@ def _build_deterministic_report(
                 second_factor=second_factor
             ),
         ),
-        inventory_view=analysis_brief.get(
-            "inventory_view",
-            "当前盘面活跃度已有事实基础，但库存、仓单与现货基差尚未接入，因此库存逻辑暂时不能写成“去库”或“累库”判断。",
-        ),
-        international_view=analysis_brief.get(
-            "international_view",
-            "模板上需要重点跟踪 {third_factor}。不过当前尚未接入国际盘、汇率与海外供需结构化接口，因此国际联动部分只保留框架提醒，不展开数值化判断。".format(
-                third_factor=third_factor
-            ),
-        ),
+        inventory_view=inventory_view,
+        international_view=international_view,
         factor_view_1=(analysis_brief.get("key_factor_views") or [])[0] if analysis_brief.get("key_factor_views") else (reasons[0] if reasons else view_reason),
         factor_view_2=(analysis_brief.get("key_factor_views") or [None, _spread_comment(spread_value)])[1] if analysis_brief.get("key_factor_views") else _spread_comment(spread_value),
         factor_view_3=(analysis_brief.get("key_factor_views") or [None, None, "交易活跃度说明当前盘面并非无量状态。"])[2] if analysis_brief.get("key_factor_views") else "交易活跃度说明当前盘面并非无量状态。",
-        factor_view_4=(analysis_brief.get("key_factor_views") or [None, None, None, "研究边界需要被明确写出，不能把缺口伪装成结论。"])[3] if analysis_brief.get("key_factor_views") else "研究边界需要被明确写出，不能把缺口伪装成结论。",
+        factor_view_4=(analysis_brief.get("key_factor_views") or [None, None, None, "研究边界需要被明确写出，不能把缺口伪装成结论。"])[3] if analysis_brief.get("key_factor_views") else ("外盘、宏观和部分基本面数据已有结构化补充，但供需平衡等缺口仍需单独披露。" if external_items or fundamental_items else "研究边界需要被明确写出，不能把缺口伪装成结论。"),
         risk_2=(analysis_brief.get("risk_views") or [None, "供给、需求、库存和国际联动等结构化接口尚未补齐前，当前观点仍应理解为盘面判断，而不是完整产业链结论。"])[1] if analysis_brief.get("risk_views") else "供给、需求、库存和国际联动等结构化接口尚未补齐前，当前观点仍应理解为盘面判断，而不是完整产业链结论。",
         risk_3=(analysis_brief.get("risk_views") or [None, None, "单日盘面强弱可能受资金和期限结构扰动影响，若后续真实基本面数据与盘面信号背离，观点需要及时修正。"])[2] if analysis_brief.get("risk_views") else "单日盘面强弱可能受资金和期限结构扰动影响，若后续真实基本面数据与盘面信号背离，观点需要及时修正。",
         main_factor=main_factor,

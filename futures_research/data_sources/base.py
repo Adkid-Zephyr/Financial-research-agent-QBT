@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, List
+from typing import Any, Dict, Iterable, List
 
 from futures_research.models.source import DataFetchRequest, SourcePayload
+from futures_research.models.variety import DataSourceConfig
 
 
 class DataSourceAdapter(ABC):
     source_type = "base"
 
     @abstractmethod
-    async def fetch(self, request: DataFetchRequest) -> SourcePayload:
+    async def fetch(self, request: DataFetchRequest, params: Dict[str, Any] | None = None) -> SourcePayload:
         raise NotImplementedError
 
 
@@ -35,9 +36,15 @@ class DataSourceRegistry:
     async def fetch_many(
         self,
         request: DataFetchRequest,
-        source_types: Iterable[str],
+        source_configs: Iterable[str | DataSourceConfig],
     ) -> List[SourcePayload]:
         payloads = []
-        for source_type in source_types:
-            payloads.append(await self.get(source_type).fetch(request))
+        for source_config in source_configs:
+            if isinstance(source_config, DataSourceConfig):
+                source_type = source_config.type
+                params = source_config.params
+            else:
+                source_type = str(source_config)
+                params = {}
+            payloads.append(await self.get(source_type).fetch(request, params=params))
         return payloads

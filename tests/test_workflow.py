@@ -6,8 +6,10 @@ import unittest
 from unittest.mock import patch
 
 from futures_research import config
+from futures_research.data_sources.base import DataSourceAdapter, DataSourceRegistry
 from futures_research.llm import client as llm_client_module
 from futures_research.main import run_research
+from futures_research.models.source import SourcePayload
 from futures_research.models.state import WorkflowState
 from futures_research.runtime import build_runtime
 from futures_research.storage import SqlAlchemyReportRepository
@@ -92,21 +94,21 @@ class RevisionAwareLLMClient:
 > **情绪**：中性 | **置信度**：中
 
 ## 一、行情回顾
-价格在 13500 元/吨附近，价差 120 元/吨。（来源：A）
+价格在 13500 元/吨附近，价差 120 元/吨。（来源：CTP snapshot API）
 
 ## 二、基本面分析
 ### 供给端
-供给平稳。（来源：A）
+供给平稳。（来源：CTP snapshot API）
 ### 需求端
-需求平稳。（来源：B）
+需求平稳。（来源：CTP snapshot API）
 ### 库存与持仓
-库存 50 万吨，持仓变化 4%。（来源：C）
+库存 50 万吨，持仓变化 4%。（来源：CTP snapshot API）
 
 ## 三、国际市场
-ICE 与美元波动温和。（来源：D）
+ICE 与美元波动温和。（来源：CTP snapshot API）
 
 ## 四、近期重要资讯
-- 资讯 1（来源：A）
+- 资讯 1（来源：CTP snapshot API）
 
 ## 五、核心驱动因子
 1. 因子一
@@ -188,6 +190,92 @@ class HybridLLMClient:
 
     async def generate_report(self, prompt, context):
         raise AssertionError("Hybrid mode should not call generate_report for deterministic writer path.")
+
+
+class FakeCTPSource(DataSourceAdapter):
+    source_type = "ctp_snapshot"
+
+    async def fetch(self, request, params=None):
+        del params
+        return SourcePayload(
+            source_type=self.source_type,
+            summary="fake ctp",
+            highlights=[
+                "CTP快照显示 au2606 最新价 750，涨跌 1，涨跌幅 0.13%，更新时间 2026-04-10 15:00:00。",
+                "当前可核验持仓量 100，成交量 200。",
+                "au2606-au2612 当前价差 -2。",
+            ],
+            metrics={
+                "主数据合约ID": "au2606",
+                "主力合约参考价": "750",
+                "主力合约买一": "749.8",
+                "主力合约卖一": "750.2",
+                "主力合约涨跌": "1",
+                "主力合约涨跌幅": "0.13%",
+                "主力合约持仓量": "100",
+                "主力合约成交量": "200",
+                "主力合约交易日": "2026-04-10",
+                "主力合约更新时间": "2026-04-10 15:00:00",
+                "次数据合约ID": "au2612",
+                "次主力合约参考价": "752",
+                "近月-远月价差": "-2",
+            },
+            sources=["CTP snapshot API"],
+            raw_items=[
+                {
+                    "item_type": "snapshot",
+                    "role": "primary",
+                    "instrument_id": "au2606",
+                    "trading_day": "2026-04-10",
+                    "update_time": "2026-04-10 15:00:00",
+                    "source": "test",
+                },
+                {
+                    "item_type": "snapshot",
+                    "role": "secondary",
+                    "instrument_id": "au2612",
+                    "trading_day": "2026-04-10",
+                    "update_time": "2026-04-10 15:00:00",
+                    "source": "test",
+                },
+            ],
+        )
+
+
+class FakeYahooSource(DataSourceAdapter):
+    source_type = "yahoo_market"
+
+    async def fetch(self, request, params=None):
+        del request, params
+        return SourcePayload(
+            source_type=self.source_type,
+            summary="fake yahoo",
+            highlights=[
+                "Yahoo Finance via yfinance 显示 COMEX黄金（GC=F）截至 2026-04-10 收盘价 2400，涨跌 12，涨跌幅 0.5%。"
+            ],
+            metrics={
+                "外盘/宏观:COMEX黄金:收盘价": "2400美元/盎司",
+                "外盘/宏观:COMEX黄金:涨跌": "12美元/盎司",
+                "外盘/宏观:COMEX黄金:涨跌幅": "0.5%",
+                "外盘/宏观:COMEX黄金:数据日期": "2026-04-10",
+            },
+            sources=["Yahoo Finance via yfinance"],
+            raw_items=[
+                {
+                    "item_type": "external_market",
+                    "role": "international_market",
+                    "ticker": "GC=F",
+                    "name": "COMEX黄金",
+                    "as_of_date": "2026-04-10",
+                    "close": "2400",
+                    "change": "12",
+                    "change_pct": "0.5%",
+                    "unit": "美元/盎司",
+                    "source": "Yahoo Finance via yfinance",
+                    "stale": "false",
+                }
+            ],
+        )
 
 
 class WorkflowTests(unittest.TestCase):
@@ -313,6 +401,34 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("analysis_brief", final_state.raw_data)
         self.assertIn("盘面定价偏强", final_state.report_draft)
         self.assertIn("CTP snapshot API", final_state.report_draft)
+
+    def test_hybrid_workflow_embeds_yahoo_external_numbers_deterministically(self):
+        runtime = build_runtime()
+        registry = DataSourceRegistry()
+        registry.register(FakeCTPSource())
+        registry.register(FakeYahooSource())
+        runtime.data_source_registry = registry
+        fake_llm = HybridLLMClient()
+        runtime.llm_client = fake_llm
+        workflow = build_workflow(runtime)
+
+        initial_state = WorkflowState(
+            symbol="AU2606",
+            variety_code="AU",
+            variety="沪金",
+            target_date=date(2026, 4, 10),
+            max_review_rounds=2,
+        )
+        with patch.object(config, "ANALYSIS_RENDER_MODE", "hybrid"), patch.object(config, "REPORT_RENDER_MODE", "hybrid"):
+            result = asyncio.run(workflow.ainvoke(initial_state.model_dump()))
+        final_state = WorkflowState.model_validate(result)
+
+        self.assertEqual(len(fake_llm.analysis_contexts), 1)
+        self.assertIn("external_market_facts", fake_llm.analysis_contexts[0]["fact_pack"])
+        self.assertIn("COMEX黄金", final_state.report_draft)
+        self.assertIn("2400美元/盎司", final_state.report_draft)
+        self.assertIn("Yahoo Finance via yfinance", final_state.report_draft)
+        self.assertTrue(final_state.review_result.passed)
 
 
 if __name__ == "__main__":
