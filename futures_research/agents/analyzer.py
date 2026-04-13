@@ -61,13 +61,33 @@ def _build_local_brief(state: Dict[str, Any], variety_definition: VarietyDefinit
     metrics = raw_data.get("metrics", {})
     data_gaps = raw_data.get("data_gaps", [])
     workflow = raw_data.get("research_workflow", {})
-    spread = _parse_number(metrics.get("近月-远月价差"))
-    change_pct = _parse_number(metrics.get("主力合约涨跌幅"))
+    can_write_formal_report = workflow.get("can_write_formal_report", False)
+    ctp_metrics = metrics if can_write_formal_report else {}
+    spread = _parse_number(ctp_metrics.get("近月-远月价差"))
+    change_pct = _parse_number(ctp_metrics.get("主力合约涨跌幅"))
     sentiment, confidence, reasoning = _infer_sentiment(change_pct, spread)
     factor_1 = variety_definition.key_factors[0] if variety_definition.key_factors else "供给端节奏"
     factor_2 = variety_definition.key_factors[1] if len(variety_definition.key_factors) > 1 else "需求端表现"
     factor_3 = variety_definition.key_factors[2] if len(variety_definition.key_factors) > 2 else "期限结构"
     factor_4 = variety_definition.key_factors[3] if len(variety_definition.key_factors) > 3 else "外部联动"
+    external_market_facts = raw_data.get("external_market_facts", [])
+    fundamental_facts = raw_data.get("fundamental_facts", [])
+    international_view = "{factor} 需要继续跟踪，但在国际盘与海外供需数字接入前，只保留框架提醒。".format(
+        factor=factor_4
+    )
+    if external_market_facts:
+        international_view = "{factor} 已有外盘和宏观结构化行情补充，但观点仍需和国内盘面共同验证。".format(
+            factor=factor_4
+        )
+    inventory_view = "当前只能确认盘面活跃度与期限结构，库存和仓单数据仍待补充。"
+    event_view = "最新快照与期限结构已可核验，其余重要事件仍需等结构化数据继续补全。"
+    activity_view = "交易活跃度说明盘面并非无量波动。"
+    if not can_write_formal_report:
+        inventory_view = "当前未取得与目标日期一致的盘面持仓、成交量、库存和仓单数据。"
+        event_view = "目标日期一致的 CTP 快照仍待补充，外盘和宏观字段只能按各自可得日期引用。"
+        activity_view = "交易活跃度暂无目标日期一致的可核验数据。"
+    if fundamental_facts:
+        inventory_view = "现货、基差或库存已有结构化数据补充，但供需平衡和产业开工仍需继续接入。"
     return {
         "sentiment": sentiment,
         "confidence": confidence,
@@ -78,15 +98,13 @@ def _build_local_brief(state: Dict[str, Any], variety_definition: VarietyDefinit
         "demand_view": "{factor} 对价格中枢重要，但当前没有真实结构化数字，因此需求端暂不扩写为确定结论。".format(
             factor=factor_2
         ),
-        "inventory_view": "当前只能确认盘面活跃度与期限结构，库存和仓单数据仍待补充。",
-        "international_view": "{factor} 需要继续跟踪，但在国际盘与海外供需数字接入前，只保留框架提醒。".format(
-            factor=factor_4
-        ),
-        "event_view": "最新快照与期限结构已可核验，其余重要事件仍需等结构化数据继续补全。",
+        "inventory_view": inventory_view,
+        "international_view": international_view,
+        "event_view": event_view,
         "key_factor_views": [
             "盘面涨跌反映日内资金定价方向。",
             _describe_spread(spread),
-            "交易活跃度说明盘面并非无量波动。",
+            activity_view,
             "研究边界需要被明确写出，不能把缺口伪装成结论。",
         ],
         "risk_views": [
@@ -95,14 +113,14 @@ def _build_local_brief(state: Dict[str, Any], variety_definition: VarietyDefinit
             "若后续真实基本面数据与盘面信号背离，观点需要及时修正。",
         ],
         "fact_pack_summary": {
-            "price": metrics.get("主力合约参考价", "暂无"),
-            "change": metrics.get("主力合约涨跌", "暂无"),
-            "change_pct": metrics.get("主力合约涨跌幅", "暂无"),
-            "spread": metrics.get("近月-远月价差", "暂无"),
-            "open_interest": metrics.get("主力合约持仓量", "暂无"),
-            "volume": metrics.get("主力合约成交量", "暂无"),
-            "trading_day": metrics.get("主力合约交易日", "暂无"),
-            "update_time": metrics.get("主力合约更新时间", "暂无"),
+            "price": ctp_metrics.get("主力合约参考价", "暂无"),
+            "change": ctp_metrics.get("主力合约涨跌", "暂无"),
+            "change_pct": ctp_metrics.get("主力合约涨跌幅", "暂无"),
+            "spread": ctp_metrics.get("近月-远月价差", "暂无"),
+            "open_interest": ctp_metrics.get("主力合约持仓量", "暂无"),
+            "volume": ctp_metrics.get("主力合约成交量", "暂无"),
+            "trading_day": ctp_metrics.get("主力合约交易日", "暂无"),
+            "update_time": ctp_metrics.get("主力合约更新时间", "暂无"),
             "blocking_reason": workflow.get("blocking_reason") or "无",
             "data_gap_1": data_gaps[0] if data_gaps else "暂无",
         },
@@ -113,6 +131,8 @@ def _build_fact_pack_for_llm(state: Dict[str, Any], variety_definition: VarietyD
     raw_data = state["raw_data"]
     metrics = raw_data.get("metrics", {})
     workflow = raw_data.get("research_workflow", {})
+    can_write_formal_report = workflow.get("can_write_formal_report", False)
+    ctp_metrics = metrics if can_write_formal_report else {}
     return {
         "variety": variety_definition.name,
         "variety_code": variety_definition.code,
@@ -122,15 +142,17 @@ def _build_fact_pack_for_llm(state: Dict[str, Any], variety_definition: VarietyD
         "market_context": raw_data.get("market_context", ""),
         "verified_facts": raw_data.get("verified_facts", []),
         "metrics": {
-            "price": metrics.get("主力合约参考价", "暂无"),
-            "change": metrics.get("主力合约涨跌", "暂无"),
-            "change_pct": metrics.get("主力合约涨跌幅", "暂无"),
-            "spread": metrics.get("近月-远月价差", "暂无"),
-            "open_interest": metrics.get("主力合约持仓量", "暂无"),
-            "volume": metrics.get("主力合约成交量", "暂无"),
-            "trading_day": metrics.get("主力合约交易日", "暂无"),
-            "update_time": metrics.get("主力合约更新时间", "暂无"),
+            "price": ctp_metrics.get("主力合约参考价", "暂无"),
+            "change": ctp_metrics.get("主力合约涨跌", "暂无"),
+            "change_pct": ctp_metrics.get("主力合约涨跌幅", "暂无"),
+            "spread": ctp_metrics.get("近月-远月价差", "暂无"),
+            "open_interest": ctp_metrics.get("主力合约持仓量", "暂无"),
+            "volume": ctp_metrics.get("主力合约成交量", "暂无"),
+            "trading_day": ctp_metrics.get("主力合约交易日", "暂无"),
+            "update_time": ctp_metrics.get("主力合约更新时间", "暂无"),
         },
+        "external_market_facts": raw_data.get("external_market_facts", []),
+        "fundamental_facts": raw_data.get("fundamental_facts", []),
         "data_gaps": raw_data.get("data_gaps", []),
         "constraints": {
             "no_new_numbers": True,
@@ -198,6 +220,8 @@ def _render_analysis_markdown(brief: Dict[str, Any], state: Dict[str, Any]) -> s
     metrics = raw_data.get("metrics", {})
     facts = raw_data.get("verified_facts", [])
     workflow = raw_data.get("research_workflow", {})
+    can_write_formal_report = workflow.get("can_write_formal_report", False)
+    ctp_metrics = metrics if can_write_formal_report else {}
     return """
 ## 核心观点
 {core_view}
@@ -259,10 +283,10 @@ def _render_analysis_markdown(brief: Dict[str, Any], state: Dict[str, Any]) -> s
         facts="\n".join("- {fact}".format(fact=fact) for fact in facts) or "- 暂无",
         can_write_formal_report=workflow.get("can_write_formal_report", False),
         blocking_reason=workflow.get("blocking_reason") or "无",
-        price=metrics.get("主力合约参考价", "暂无"),
-        change=metrics.get("主力合约涨跌", "暂无"),
-        change_pct=metrics.get("主力合约涨跌幅", "暂无"),
-        spread=metrics.get("近月-远月价差", "暂无"),
+        price=ctp_metrics.get("主力合约参考价", "暂无"),
+        change=ctp_metrics.get("主力合约涨跌", "暂无"),
+        change_pct=ctp_metrics.get("主力合约涨跌幅", "暂无"),
+        spread=ctp_metrics.get("近月-远月价差", "暂无"),
     )
 
 

@@ -31,10 +31,35 @@ DISCLAIMER_PATTERNS = [
     re.compile(r"仅供(?:参考|信息参考)"),
     re.compile(r"不构成(?:任何)?投资建议"),
 ]
+DEFAULT_ALLOWED_SOURCE_PREFIXES = [
+    "CTP snapshot API",
+    "Yahoo Finance via yfinance",
+    "AkShare structured commodity data",
+    "AkShare:",
+    "数据覆盖范围说明",
+]
 
 
 def _has_sources(text: str) -> bool:
     return "来源：" in text or "来源:" in text
+
+
+def _extract_source_labels(text: str) -> List[str]:
+    labels = []
+    for match in re.finditer(r"来源[:：]([^\n）)]+)", text):
+        label = match.group(1).strip()
+        if label:
+            labels.append(label)
+    return labels
+
+
+def _unknown_source_labels(text: str, raw_sources: List[str]) -> List[str]:
+    allowed_prefixes = [*DEFAULT_ALLOWED_SOURCE_PREFIXES, *[str(item) for item in raw_sources]]
+    unknown = []
+    for label in _extract_source_labels(text):
+        if not any(label.startswith(prefix) for prefix in allowed_prefixes):
+            unknown.append(label)
+    return unknown
 
 
 def _contains_any(text: str, keywords: List[str]) -> bool:
@@ -73,6 +98,15 @@ async def review_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[st
         "web_search_20250305" in str(item) for item in state.get("raw_data", {}).get("sources", [])
     ):
         blocking_issues.append("包含保留中的 web_search 数据来源")
+    unknown_sources = _unknown_source_labels(draft, state.get("raw_data", {}).get("sources", []))
+    if unknown_sources:
+        blocking_issues.append("包含未登记数据来源：%s" % "；".join(sorted(set(unknown_sources))))
+    external_market_facts = state.get("raw_data", {}).get("external_market_facts", [])
+    if external_market_facts and "Yahoo Finance via yfinance" not in draft:
+        blocking_issues.append("外盘/宏观数字缺少 Yahoo Finance via yfinance 来源标注")
+    fundamental_facts = state.get("raw_data", {}).get("fundamental_facts", [])
+    if fundamental_facts and "AkShare" not in draft:
+        blocking_issues.append("基本面数字缺少 AkShare 来源标注")
 
     logic_chain = 10.0
     if _section_exists(draft, "## 二、基本面分析"):

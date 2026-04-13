@@ -14,4 +14,40 @@ news_keywords:
   - [沪银, 白银, COMEX白银, 金银比, 实际利率, 光伏]
 data_sources:
   - type: ctp_snapshot
+  - type: yahoo_market
+    params:
+      max_stale_days: 5
+      assets:
+        - ticker: SI=F
+          name: COMEX白银
+          role: international_market
+          unit: 美元/盎司
+        - ticker: GC=F
+          name: COMEX黄金
+          role: precious_metals_linkage
+          unit: 美元/盎司
+        - ticker: DX-Y.NYB
+          name: 美元指数
+          role: macro
+        - ticker: ^TNX
+          name: 美国10年期国债收益率
+          role: macro
+          unit: "%"
+        - ticker: CNY=X
+          name: USD/CNY
+          role: fx
+  - type: akshare_commodity
+    params:
+      max_stale_days: 10
+      modules:
+        - type: spot_basis
+          symbol: AG
+          name: 沪银现货与基差
+        - type: sge_spot
+          symbol: Ag(T+D)
+          name: 上海黄金交易所Ag(T+D)
+          unit: 元/千克
+        - type: comex_inventory
+          symbol: 白银
+          name: COMEX白银库存
 prompt_template: precious_metals_futures

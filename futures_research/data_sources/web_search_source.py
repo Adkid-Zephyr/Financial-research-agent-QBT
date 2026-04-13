@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, Dict
+
 from futures_research.data_sources.base import DataSourceAdapter
 from futures_research.models.source import DataFetchRequest, SourcePayload
 
@@ -7,7 +9,8 @@ from futures_research.models.source import DataFetchRequest, SourcePayload
 class WebSearchSource(DataSourceAdapter):
     source_type = "web_search"
 
-    async def fetch(self, request: DataFetchRequest) -> SourcePayload:
+    async def fetch(self, request: DataFetchRequest, params: Dict[str, Any] | None = None) -> SourcePayload:
+        del params
         return SourcePayload(
             source_type=self.source_type,
             summary=(

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import List
+from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class DataSourceConfig(BaseModel):
     type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
 
 
 class VarietyDefinition(BaseModel):

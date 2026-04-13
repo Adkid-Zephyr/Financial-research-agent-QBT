@@ -24,3 +24,4 @@ class SourcePayload(BaseModel):
     metrics: Dict[str, str] = Field(default_factory=dict)
     sources: List[str] = Field(default_factory=list)
     raw_items: List[Dict[str, str]] = Field(default_factory=list)
+    data_gaps: List[str] = Field(default_factory=list)

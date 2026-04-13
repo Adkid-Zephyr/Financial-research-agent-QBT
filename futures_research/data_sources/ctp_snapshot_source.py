@@ -18,7 +18,8 @@ class CTPSnapshotSource(DataSourceAdapter):
     def __init__(self, base_url: str | None = None):
         self.base_url = (base_url or config.CTP_SNAPSHOT_BASE_URL).rstrip("/")
 
-    async def fetch(self, request: DataFetchRequest) -> SourcePayload:
+    async def fetch(self, request: DataFetchRequest, params: Dict[str, Any] | None = None) -> SourcePayload:
+        del params
         primary_snapshot = await self._resolve_best_snapshot(
             contract=request.contract,
             exchange=request.exchange,

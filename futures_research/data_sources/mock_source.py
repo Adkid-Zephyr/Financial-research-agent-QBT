@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from futures_research.data_sources.base import DataSourceAdapter
 from futures_research.models.source import DataFetchRequest, SourcePayload
@@ -9,7 +9,8 @@ from futures_research.models.source import DataFetchRequest, SourcePayload
 class MockDataSource(DataSourceAdapter):
     source_type = "mock"
 
-    async def fetch(self, request: DataFetchRequest) -> SourcePayload:
+    async def fetch(self, request: DataFetchRequest, params: Dict[str, Any] | None = None) -> SourcePayload:
+        del params
         highlights = self._build_highlights(request.key_factors, request.variety_name)
         metrics = self._build_metrics(request)
         sources = [
