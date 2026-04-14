@@ -70,6 +70,10 @@ def create_app(repository: Optional[ReportRepository] = None, event_bus: Optiona
     def frontend():
         return FileResponse(STATIC_DIR / "index.html")
 
+    @app.get("/admin", include_in_schema=False)
+    def admin_frontend():
+        return FileResponse(STATIC_DIR / "admin.html")
+
     app.mount("/outputs", StaticFiles(directory=config.OUTPUT_DIR), name="outputs")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(reports_router, prefix="/reports", tags=["reports"])

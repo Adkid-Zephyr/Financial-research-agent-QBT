@@ -91,10 +91,28 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(payload["final_report"]["summary"], "郑棉短期维持震荡偏强。")
         self.assertEqual(payload["review_result"]["total_score"], 86.0)
 
+    def test_ask_report_uses_saved_report_sources(self):
+        response = self.client.post(
+            f"/reports/{self.sample_state.run_id}/ask",
+            json={"question": "这份报告的数据来源是什么？"},
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("已登记的结构化来源", payload["answer"])
+        self.assertEqual(payload["source_refs"], ["mock"])
+
     def test_frontend_root_page(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
+        self.assertIn("问一句，得到一份有数据边界的期货日报", response.text)
+        self.assertIn("/admin", response.text)
+        self.assertEqual(response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
+
+    def test_admin_page_keeps_existing_workbench(self):
+        response = self.client.get("/admin")
+        self.assertEqual(response.status_code, 200)
         self.assertIn("期货投研 Agent 测试控制台", response.text)
+        self.assertIn("batch-run-form", response.text)
         self.assertEqual(response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
 
     def test_healthz_exposes_llm_status(self):
@@ -110,9 +128,10 @@ class ApiTests(unittest.TestCase):
         called = threading.Event()
         received = {}
 
-        async def fake_runner(symbol, target_date):
+        async def fake_runner(symbol, target_date, research_profile=None):
             received["symbol"] = symbol
             received["target_date"] = target_date
+            received["research_profile"] = research_profile
             called.set()
             return self.sample_state
 
@@ -120,12 +139,20 @@ class ApiTests(unittest.TestCase):
         try:
             client.app.state.run_single = fake_runner
 
-            response = client.post("/runs", json={"symbol": "cf", "target_date": "2026-04-01"})
+            response = client.post(
+                "/runs",
+                json={
+                    "symbol": "cf",
+                    "target_date": "2026-04-01",
+                    "research_profile": {"persona": "hedging", "user_focus": "关注基差"},
+                },
+            )
             self.assertEqual(response.status_code, 202)
             self.assertEqual(response.json()["requested_symbol"], "CF")
             self.assertTrue(called.wait(2))
             self.assertEqual(received["symbol"], "CF")
             self.assertEqual(received["target_date"], date(2026, 4, 1))
+            self.assertEqual(received["research_profile"]["persona"], "hedging")
         finally:
             client.close()
 

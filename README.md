@@ -75,6 +75,9 @@ uvicorn futures_research.api.app:app --reload
 
 - `http://127.0.0.1:8000/docs`
 - `http://127.0.0.1:8000/`
+- `http://127.0.0.1:8000/admin`
+
+当前 `/` 是 C 端投研入口，保留一句话研究、报告展示、数据来源与追问；`/admin` 是原测试/验收工作台，保留健康检查、单品种/批量触发、WebSocket 事件、报告查询和删除。
 
 ### Review Agent
 
@@ -123,6 +126,15 @@ docker compose up --build -d
 - `REVIEW_AGENT_API_KEY`
 - `REVIEW_AGENT_BASE_URL`
 - `REVIEW_AGENT_MODEL`
+- `ENABLE_YAHOO_MARKET_SOURCE`
+- `ENABLE_AKSHARE_COMMODITY_SOURCE`
+
+默认运行只启用 CTP 快照主链路。需要让报告使用已配置的 yfinance 外盘/宏观与 AkShare 商品结构化数据时，显式打开：
+
+```bash
+ENABLE_YAHOO_MARKET_SOURCE=true ENABLE_AKSHARE_COMMODITY_SOURCE=true \
+uvicorn futures_research.api.app:app --host 127.0.0.1 --port 8025
+```
 
 ## Current Repo Policy
 

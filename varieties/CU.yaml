@@ -14,4 +14,25 @@ news_keywords:
   - [沪铜, 铜, LME铜, 冶炼加工费, 电网投资, 铜库存]
 data_sources:
   - type: ctp_snapshot
+  - type: yahoo_market
+    params:
+      max_stale_days: 5
+      assets:
+        - ticker: HG=F
+          name: COMEX铜
+          role: international_market
+          unit: 美元/磅
+        - ticker: DX-Y.NYB
+          name: 美元指数
+          role: macro
+        - ticker: CNY=X
+          name: USD/CNY
+          role: fx
+  - type: akshare_commodity
+    params:
+      max_stale_days: 10
+      modules:
+        - type: spot_basis
+          symbol: CU
+          name: 沪铜现货与基差
 prompt_template: industrial_materials_futures

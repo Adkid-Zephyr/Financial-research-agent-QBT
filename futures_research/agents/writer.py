@@ -194,6 +194,7 @@ def _build_deterministic_report(
     market_context = raw_data.get("market_context", "")
     analysis_result = state.get("analysis_result", "")
     analysis_brief = raw_data.get("analysis_brief", {})
+    request_context = raw_data.get("request_context", {})
     external_items = _external_market_items(raw_data)
     fundamental_items = _fundamental_items(raw_data)
     can_write_formal_report = workflow.get("can_write_formal_report", False)
@@ -243,6 +244,10 @@ def _build_deterministic_report(
     info_lines = "\n".join(
         "1. {gap}".format(gap=gap) for gap in data_gaps[:4]
     ) or "1. 当前无额外待补充项。"
+    if request_context.get("persona_label"):
+        info_lines += "\n1. 本次研究视角：{persona_label}。".format(
+            persona_label=request_context.get("persona_label")
+        )
     if can_write_formal_report and primary:
         news_line = "1. 主数据合约 {instrument_id} 最新更新时间为 {update_time}，交易日为 {trading_day}。".format(
             instrument_id=primary.get("instrument_id") or metrics.get("主数据合约ID", "暂无"),
