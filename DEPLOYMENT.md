@@ -224,3 +224,56 @@ client -> nginx -> fastapi/websocket(app) -> postgres
 - `nginx` 统一处理 HTTP 与 WebSocket 代理，便于后续加鉴权或 HTTPS
 - 定时执行先交给宿主机 `cron` 调用触发 API，避免在 MVP 阶段过早引入 Celery / Redis
 - 未配置真实模型密钥时仍可用 mock 流程验证整条部署链
+
+## 11. GitLab CI/CD（main 自动打包 + 自动部署）
+
+仓库已支持 GitLab CI/CD，入口文件：
+
+- `.gitlab-ci.yml`
+- `deploy/ci/deploy_main.sh`
+
+流水线阶段：
+
+- `test`
+  - 创建虚拟环境并安装：
+    - `requirements.txt`
+    - `report_review_agent/requirements.txt`
+  - 执行：
+    - `DATABASE_URL='' python -m unittest discover -s tests -v`
+    - `DATABASE_URL='' python -m unittest discover -s report_review_agent/tests -v`
+- `package-main`（仅 `main`）
+  - 打包代码为 `dist/<project>-<sha>.tar.gz`
+  - 生成 `sha256` 校验文件并作为 artifact 保存
+- `deploy-main`（仅 `main`）
+  - 使用 `deploy/ci/deploy_main.sh` 自动部署到 `/opt/...`
+
+Runner 约束：
+
+- 全局指定 `tags: [demo-shell]`
+- 需确保该 runner 具备：
+  - `python3` / `pip`
+  - `tar`
+  - （可选）`docker compose` 或 `docker-compose`
+  - （可选）`systemctl`
+
+默认部署目录：
+
+- `/opt/research-report-agent`
+- 发布结构：
+  - `/opt/research-report-agent/releases/<commit>`
+  - `/opt/research-report-agent/current`（软链指向当前版本）
+  - `/opt/research-report-agent/shared/.env`（可选）
+  - `/opt/research-report-agent/shared/{outputs,logs,memory}`
+
+建议在 GitLab CI/CD Variables 配置：
+
+- `DEPLOY_USE_SUDO`
+  - `true` 时部署脚本用 `sudo` 执行写入 `/opt`、重启服务等操作
+- `DEPLOY_PATH`
+  - 自定义部署目录；默认 `/opt/research-report-agent`
+- `DEPLOY_ENV_FILE`
+  - 多行 `.env` 内容，部署时写入 `shared/.env`
+- `DEPLOY_WITH_DOCKER_COMPOSE`
+  - 默认 `true`；若不希望部署阶段执行 `docker compose up -d --build`，设为 `false`
+- `SYSTEMD_SERVICE`
+  - 可选，填写后部署完成会执行 `systemctl restart <service>`

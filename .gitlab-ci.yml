@@ -1,0 +1,74 @@
+stages:
+  - test
+  - package
+  - deploy
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - when: never
+
+default:
+  tags:
+    - demo-shell
+  before_script:
+    - python3 --version
+    - python3 -m pip --version
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+
+cache:
+  key: "$CI_JOB_NAME"
+  paths:
+    - .cache/pip
+
+test:
+  stage: test
+  script:
+    - python3 -m venv .venv
+    - . .venv/bin/activate
+    - python -m pip install --upgrade pip
+    - python -m pip install -r requirements.txt
+    - python -m pip install -r report_review_agent/requirements.txt
+    - DATABASE_URL='' python -m unittest discover -s tests -v
+    - DATABASE_URL='' python -m unittest discover -s report_review_agent/tests -v
+
+package-main:
+  stage: package
+  needs: ["test"]
+  script:
+    - mkdir -p dist
+    - BUILD_FILE="dist/${CI_PROJECT_NAME}-${CI_COMMIT_SHORT_SHA}.tar.gz"
+    - tar
+      --exclude-vcs
+      --exclude=".venv"
+      --exclude="__pycache__"
+      --exclude="*.pyc"
+      --exclude=".cache"
+      --exclude="dist"
+      --exclude="logs/*"
+      --exclude="outputs/*"
+      -czf "${BUILD_FILE}" .
+    - sha256sum "${BUILD_FILE}" > "${BUILD_FILE}.sha256"
+    - ls -lh dist
+  artifacts:
+    expire_in: 14 days
+    paths:
+      - dist/*.tar.gz
+      - dist/*.sha256
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+deploy-main:
+  stage: deploy
+  needs: ["package-main"]
+  environment:
+    name: production
+  script:
+    - chmod +x deploy/ci/deploy_main.sh
+    - deploy/ci/deploy_main.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
