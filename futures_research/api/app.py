@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 from typing import AsyncIterator, Optional
@@ -34,7 +34,7 @@ def create_app(repository: Optional[ReportRepository] = None, event_bus: Optiona
                 repository.close()
 
     app = FastAPI(title="Futures Research API", version="0.3.0", lifespan=lifespan)
-    app.state.started_at = datetime.now(UTC)
+    app.state.started_at = datetime.now(timezone.utc)
     app.state.process_id = os.getpid()
     app.state.cwd = str(Path.cwd())
     app.state.report_repository = resolved_repository

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from typing import Awaitable, Callable, Iterable, List, Sequence
 from uuid import UUID, uuid4
 
@@ -23,7 +23,7 @@ class ResearchScheduler:
         target_date: date,
         concurrency: int = 2,
     ) -> BatchResearchSummary:
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         batch_id = uuid4()
         try:
             normalized_symbols = self._normalize_symbols(symbols)
@@ -46,7 +46,7 @@ class ResearchScheduler:
                         return await self._run_one(requested_symbol, target_date, batch_id=batch_id)
 
             items = await asyncio.gather(*[_guarded_run(symbol) for symbol in normalized_symbols])
-            completed_at = datetime.now(UTC)
+            completed_at = datetime.now(timezone.utc)
             summary = self._build_summary(
                 items=items,
                 target_date=target_date,
