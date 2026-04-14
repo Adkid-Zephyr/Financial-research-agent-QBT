@@ -86,12 +86,10 @@ package-main:
 deploy-main:
   stage: deploy
   needs: ["package-main"]
-  variables:
-    DEPLOY_USE_SUDO: "false"
   environment:
     name: production
   script:
     - chmod +x deploy/ci/deploy_main.sh
-    - deploy/ci/deploy_main.sh
+    - DEPLOY_USE_SUDO=false deploy/ci/deploy_main.sh
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
