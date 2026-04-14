@@ -53,6 +53,9 @@ if run_as_root test -f "${SHARED_DIR}/.env"; then
 fi
 
 python3 -m venv "${RELEASE_DIR}/.venv"
+if ! "${RELEASE_DIR}/.venv/bin/python" -m pip --version >/dev/null 2>&1; then
+  "${RELEASE_DIR}/.venv/bin/python" -m ensurepip --upgrade
+fi
 "${RELEASE_DIR}/.venv/bin/pip" install --upgrade pip
 "${RELEASE_DIR}/.venv/bin/pip" install -r "${RELEASE_DIR}/requirements.txt"
 if [[ -f "${RELEASE_DIR}/report_review_agent/requirements.txt" ]]; then

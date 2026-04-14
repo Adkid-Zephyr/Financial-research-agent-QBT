@@ -13,7 +13,6 @@ default:
     - demo-shell
   before_script:
     - python3 --version
-    - python3 -m pip --version
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -29,7 +28,13 @@ test:
   stage: test
   script:
     - python3 -m venv .venv
+    - |
+      if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+        echo "pip is missing in venv, trying ensurepip..."
+        .venv/bin/python -m ensurepip --upgrade
+      fi
     - . .venv/bin/activate
+    - python -m pip --version
     - python -m pip install --upgrade pip
     - python -m pip install -r requirements.txt
     - python -m pip install -r report_review_agent/requirements.txt
