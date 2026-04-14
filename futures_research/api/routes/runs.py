@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import date
-from typing import Awaitable, Callable, List
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field, model_validator
@@ -17,13 +17,14 @@ from futures_research.varieties import VarietyRegistry
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-SingleRunner = Callable[[str, date], Awaitable[WorkflowState]]
+SingleRunner = Callable[[str, date, Optional[Dict[str, Any]]], Awaitable[WorkflowState]]
 BatchRunner = Callable[[List[str], date, int], Awaitable[BatchResearchSummary]]
 
 
 class RunTriggerRequest(BaseModel):
     symbol: str
     target_date: date = Field(default_factory=date.today)
+    research_profile: Dict[str, Any] = Field(default_factory=dict)
 
 
 class RunTriggerAccepted(BaseModel):
@@ -91,7 +92,13 @@ def _resolve_requested_symbols(payload: BatchTriggerRequest) -> List[str]:
 
 @router.post("/runs", response_model=RunTriggerAccepted, status_code=status.HTTP_202_ACCEPTED)
 async def trigger_single_run(payload: RunTriggerRequest, request: Request) -> RunTriggerAccepted:
-    _spawn_background_task(_get_single_runner(request)(payload.symbol.strip().upper(), payload.target_date))
+    _spawn_background_task(
+        _get_single_runner(request)(
+            payload.symbol.strip().upper(),
+            payload.target_date,
+            payload.research_profile,
+        )
+    )
     return RunTriggerAccepted(
         requested_symbol=payload.symbol.strip().upper(),
         target_date=payload.target_date,

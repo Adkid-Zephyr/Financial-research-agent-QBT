@@ -9,6 +9,7 @@ from futures_research.runtime import RuntimeContext
 
 async def aggregate_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[str, Any]:
     variety_definition = runtime.variety_registry.get(state["variety_code"])
+    request_context = dict(state.get("raw_data", {}).get("request_context", {}))
     request = DataFetchRequest(
         variety_code=variety_definition.code,
         variety_name=variety_definition.name,
@@ -82,6 +83,7 @@ async def aggregate_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict
         "external_market_facts": external_market_facts,
         "fundamental_facts": fundamental_facts,
         "data_gaps": data_gaps,
+        "request_context": request_context,
         "research_workflow": {
             "principle": "所有具体数字只能来自当前可核验的真实结构化数据源；没有真实数字时必须明确写没有。",
             "analysis_order": [

@@ -20,9 +20,13 @@
 ## 当前决定
 - 切片1只实现线性 LangGraph：aggregate -> analyze -> write -> review。
 - 主项目当前已切换到真实数据优先模式：运行时只注册 `ctp_snapshot` 数据源，不再让 `mock` / `web_search_20250305` 进入正式工作流。
+- `2026-04-14` C 端前端重构采用保守策略：当前测试/验收工作台必须完整保留并迁移到 `/admin`；新增 C 端入口放在 `/`，以 Perplexity 式一句话投研入口为主，BigQuant 式数据源/报告库能力作为结果页和历史报告能力呈现；首版不做账号、多用户权限和长期画像，不回退任何当前后端工作流能力。
+- `2026-04-14` 已落地保守版 C 端静态入口：`GET /` 返回面向用户的一句话投研页面，`GET /admin` 返回原测试控制台；原 `app.js` / `styles.css` 只服务工作台，新 C 端使用独立 `consumer.js` / `consumer.css`，避免互相影响。
+- `2026-04-14` 新增报告追问接口 `POST /reports/{run_id}/ask`，只基于已保存报告、来源列表和 `raw_data.data_gaps` 做确定性回答；不调用 web search，不新增数字、来源或事实。
+- `2026-04-14` `/runs` 支持可选 `research_profile`，当前包含 `persona` 与 `user_focus`；`run_research()` 会把它写入 `raw_data.request_context`，aggregator 保留该上下文，analyzer hybrid fact pack 可读取，writer 会在数据说明中标注本次研究视角。
 - `2026-04-13` 已在 Phase 1 范围内补充可开关的外盘/宏观与商品基本面结构化数据源：`yahoo_market` 与 `akshare_commodity`。默认关闭，显式设置 `ENABLE_YAHOO_MARKET_SOURCE=true` / `ENABLE_AKSHARE_COMMODITY_SOURCE=true` 后才注册运行。
-- `yahoo_market` 只用于外盘/宏观辅助事实，不作为交易所正式行情源；当前 AU/AG 配置覆盖 COMEX 金银、美元指数、美国 10 年期国债收益率、USD/CNY。
-- `akshare_commodity` 只接入可核验结构化字段；当前 AU/AG 配置覆盖生意社现货与基差、上海黄金交易所现货日线、东方财富 COMEX 库存。SHFE/DCE 仓单接口在本轮探针中不稳定，未纳入正式正文。
+- `yahoo_market` 只用于外盘/宏观辅助事实，不作为交易所正式行情源；当前 AU/AG 配置覆盖 COMEX 金银、美元指数、美国 10 年期国债收益率、USD/CNY，CF/M/CU/AL 配置对应外盘商品加美元指数与 USD/CNY，LC/SI 暂无可靠 Yahoo 商品映射，仅配置美元指数与 USD/CNY。
+- `akshare_commodity` 只接入可核验结构化字段；当前 8 个品种均配置生意社现货与基差，AU/AG 额外配置上海黄金交易所现货日线与东方财富 COMEX 库存。SHFE/DCE 仓单接口在本轮探针中不稳定，未纳入正式正文。
 - reviewer 来源白名单已扩展到 `Yahoo Finance via yfinance` 与 `AkShare`，但仍硬拦截 `Mock` 与 `web_search_20250305`；外盘/基本面数字若缺少对应来源标注会被 blocking。
 - 切片2采用 SQLAlchemy + PostgreSQL DSN 方式接入存储；未配置 `DATABASE_URL` 时保持工作流可运行但不落库。
 - 切片2只新增工作流后置持久化与 FastAPI 只读查询，不修改任何 Agent 节点逻辑。
@@ -94,7 +98,7 @@
 - `2026-04-13` 修复 hybrid analyzer 对 LLM JSON 列表长度的脆弱依赖：`key_factor_views` 会规范为 4 条、`risk_views` 会规范为 3 条，缺失项只用不含数字和来源标签的确定性兜底文本补齐，避免 `_render_analysis_markdown` 因短列表 `IndexError` 中断。
 - `2026-04-13` `writer` 已增强“国际市场”与“基本面分析”：外盘/宏观数字由程序嵌入，基本面新增“现货与基差”段，COMEX 库存写入“库存与持仓”；若 CTP 交易日不匹配，行情回顾中的 CTP 价格/持仓/成交量写为“暂无可核验数据”。
 - `2026-04-13` `writer` 对 `analysis_brief.key_factor_views` / `risk_views` 改为安全读取，即使旧状态或异常 LLM 输出里列表不足，也不会再在确定性正文生成阶段崩溃。
-- `2026-04-13` AU/AG YAML 已加入 `yahoo_market` 与 `akshare_commodity` 配置；其他品种暂不打开 AkShare 仓单/库存，后续需要逐交易所逐接口验收。
+- `2026-04-13` 8 个 Phase 1 品种 YAML 均已加入 `yahoo_market` 与 `akshare_commodity` 配置；AkShare 对所有品种先只启用已探针通过的 `spot_basis`，AU/AG 保留额外 SGE 现货与 COMEX 库存；其他品种暂不打开 AkShare 仓单/库存，后续需要逐交易所逐接口验收。
 
 ## 自测结果
 - `.venv/bin/python run.py --symbol CF`：成功输出完整 Markdown 研报和审核摘要。
@@ -167,6 +171,16 @@
 - `2026-04-13` 执行 `.venv/bin/python -m unittest discover -s tests`：38 个用例全部通过。
 - `2026-04-13` 执行 `ENABLE_YAHOO_MARKET_SOURCE=true ENABLE_AKSHARE_COMMODITY_SOURCE=true .venv/bin/python run.py --symbol AU --target-date 2026-04-10`：成功生成包含 Yahoo Finance 与 AkShare 结构化事实的 AU 报告，审核通过，确认修复后不会再因 analyzer 短列表崩溃。
 - `2026-04-13` 已重启本地 `127.0.0.1:8025` FastAPI 服务到新代码，启用 `ENABLE_YAHOO_MARKET_SOURCE=true` 与 `ENABLE_AKSHARE_COMMODITY_SOURCE=true`；`GET /healthz` 返回 `web_search_enabled=false`，`POST /runs` 触发 AU 后台运行成功落库，最新报告数据源包含 CTP、Yahoo Finance 与 AkShare。
+- `2026-04-13` 为 `CF/M/CU/AL/LC/SI` 补齐 YAML 级辅助数据源配置：CF 接 ICE 棉花，M 接 CBOT 豆粕与 CBOT 大豆，CU 接 COMEX 铜，AL 接铝期货，LC/SI 只接美元指数与 USD/CNY；6 个品种均接 AkShare 生意社现货与基差。
+- `2026-04-13` 执行 AkShare `spot_basis` 探针确认 `AU/AG/CU/AL/CF/M/LC/SI` 在目标日均可返回现货价格、主力合约、基差与基差率。
+- `2026-04-13` 执行 Yahoo Finance 探针确认 `CT=F`、`ZM=F`、`ZS=F`、`HG=F`、`ALI=F`、`DX-Y.NYB`、`CNY=X` 在目标日均可返回结构化日线。
+- `2026-04-13` 执行 `.venv/bin/python -m unittest discover -s tests`：39 个用例全部通过，新增品种配置测试确保 Phase 1 品种声明 CTP、Yahoo 与 AkShare，并至少配置 AkShare `spot_basis`。
+- `2026-04-13` 执行 `ENABLE_YAHOO_MARKET_SOURCE=true ENABLE_AKSHARE_COMMODITY_SOURCE=true ANTHROPIC_API_KEY='' ANTHROPIC_BASE_URL='' .venv/bin/python run.py --symbols CF,M,AU,AG,CU,AL,LC,SI --target-date 2026-04-10 --concurrency 2`：8 个品种全部通过；逐 run_id 抽检确认每篇正文均包含 `Yahoo Finance via yfinance` 与 `AkShare` 来源。
+- `2026-04-14` 执行 `node --check futures_research/api/static/consumer.js && node --check futures_research/api/static/app.js`：新 C 端脚本与原工作台脚本语法均通过。
+- `2026-04-14` 执行 `.venv/bin/python -m unittest tests.test_api`：10 个用例全部通过，覆盖 `/` C 端入口、`/admin` 原工作台保留和 `/reports/{run_id}/ask`。
+- `2026-04-14` 执行 `.venv/bin/python -m unittest discover -s tests`：41 个用例全部通过。
+- `2026-04-14` 已重启本地 `127.0.0.1:8025` 到新静态资源；`GET /` 返回 C 端入口，`GET /admin` 返回原测试控制台，`GET /healthz` 确认 `web_search_enabled=false`。
+- `2026-04-14` 通过 `POST /runs` 发送 `research_profile={"persona":"hedging","user_focus":"关注基差和外盘"}` 触发 CF，落库状态包含 `raw_data.request_context`，正文包含“本次研究视角：产业套保”。
 
 ## 接口摘要
 - 切片1详见 `memory/SLICE_01_HANDOFF.md`。

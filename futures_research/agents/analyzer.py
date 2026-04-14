@@ -167,6 +167,7 @@ def _build_fact_pack_for_llm(state: Dict[str, Any], variety_definition: VarietyD
         "external_market_facts": raw_data.get("external_market_facts", []),
         "fundamental_facts": raw_data.get("fundamental_facts", []),
         "data_gaps": raw_data.get("data_gaps", []),
+        "request_context": raw_data.get("request_context", {}),
         "constraints": {
             "no_new_numbers": True,
             "no_new_sources": True,

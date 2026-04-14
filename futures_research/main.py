@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any, Dict, Optional
 
 from futures_research.events import get_current_batch_id, publish_event
 from futures_research.models.state import WorkflowState
@@ -9,7 +10,24 @@ from futures_research.storage import build_report_repository, persist_report_art
 from futures_research.workflow.graph import build_workflow
 
 
-async def run_research(symbol: str, target_date: date) -> WorkflowState:
+def _build_request_context(research_profile: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    profile = research_profile or {}
+    allowed_personas = {
+        "institution": "机构研究",
+        "short_term": "散户短线",
+        "hedging": "产业套保",
+        "large_trader": "大户交易",
+        "event": "事件驱动",
+    }
+    persona = str(profile.get("persona") or "institution")
+    return {
+        "persona": persona if persona in allowed_personas else "institution",
+        "persona_label": allowed_personas.get(persona, "机构研究"),
+        "user_focus": str(profile.get("user_focus") or profile.get("prompt") or "").strip(),
+    }
+
+
+async def run_research(symbol: str, target_date: date, research_profile: Optional[Dict[str, Any]] = None) -> WorkflowState:
     runtime = build_runtime()
     variety_definition = runtime.variety_registry.get(symbol)
     contract = runtime.variety_registry.resolve_contract(symbol)
@@ -19,6 +37,7 @@ async def run_research(symbol: str, target_date: date) -> WorkflowState:
         variety_code=variety_definition.code,
         variety=variety_definition.name,
         target_date=target_date,
+        raw_data={"request_context": _build_request_context(research_profile)},
     )
     publish_event(
         channel="run",
