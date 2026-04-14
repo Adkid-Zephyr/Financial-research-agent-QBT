@@ -86,6 +86,8 @@ package-main:
 deploy-main:
   stage: deploy
   needs: ["package-main"]
+  variables:
+    DEPLOY_USE_SUDO: "false"
   environment:
     name: production
   script:
