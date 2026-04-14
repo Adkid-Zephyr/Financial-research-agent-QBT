@@ -27,10 +27,26 @@ cache:
 test:
   stage: test
   script:
-    - python3 -m venv .venv
+    - export PATH="$HOME/.local/bin:$PATH"
+    - |
+      if ! python3 -m venv .venv >/dev/null 2>&1; then
+        echo "python3-venv unavailable, falling back to virtualenv..."
+        if ! python3 -m pip --version >/dev/null 2>&1; then
+          if command -v curl >/dev/null 2>&1; then
+            curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+          elif command -v wget >/dev/null 2>&1; then
+            wget -qO /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py
+          else
+            echo "Neither curl nor wget is available to bootstrap pip." >&2
+            exit 1
+          fi
+          python3 /tmp/get-pip.py --user
+        fi
+        python3 -m pip install --user --upgrade pip virtualenv
+        python3 -m virtualenv .venv
+      fi
     - |
       if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
-        echo "pip is missing in venv, trying ensurepip..."
         .venv/bin/python -m ensurepip --upgrade
       fi
     - . .venv/bin/activate

@@ -52,7 +52,22 @@ if run_as_root test -f "${SHARED_DIR}/.env"; then
   run_as_root cp "${SHARED_DIR}/.env" "${RELEASE_DIR}/.env"
 fi
 
-python3 -m venv "${RELEASE_DIR}/.venv"
+if ! python3 -m venv "${RELEASE_DIR}/.venv"; then
+  export PATH="$HOME/.local/bin:$PATH"
+  if ! python3 -m pip --version >/dev/null 2>&1; then
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+    elif command -v wget >/dev/null 2>&1; then
+      wget -qO /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py
+    else
+      echo "Neither curl nor wget is available to bootstrap pip." >&2
+      exit 1
+    fi
+    python3 /tmp/get-pip.py --user
+  fi
+  python3 -m pip install --user --upgrade pip virtualenv
+  python3 -m virtualenv "${RELEASE_DIR}/.venv"
+fi
 if ! "${RELEASE_DIR}/.venv/bin/python" -m pip --version >/dev/null 2>&1; then
   "${RELEASE_DIR}/.venv/bin/python" -m ensurepip --upgrade
 fi
