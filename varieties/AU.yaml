@@ -4,7 +4,7 @@ exchange: SHFE
 contracts:
   - AU2606
   - AU2612
-  - AU2704
+  - AU2610
 key_factors:
   - 美元指数与美国实际利率路径
   - 全球央行购金与避险资金流向

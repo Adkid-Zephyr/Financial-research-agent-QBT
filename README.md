@@ -123,18 +123,33 @@ docker compose up --build -d
 - `ANTHROPIC_API_KEY`
 - `ANTHROPIC_BASE_URL`
 - `LLM_MODEL`
+- `ANALYSIS_RENDER_MODE`
+- `REPORT_RENDER_MODE`
 - `REVIEW_AGENT_API_KEY`
 - `REVIEW_AGENT_BASE_URL`
 - `REVIEW_AGENT_MODEL`
+- `CTP_SNAPSHOT_BASE_URL`
+- `CTP_SNAPSHOT_AUTH_KEY`
 - `ENABLE_YAHOO_MARKET_SOURCE`
 - `ENABLE_AKSHARE_COMMODITY_SOURCE`
 
-默认运行只启用 CTP 快照主链路。需要让报告使用已配置的 yfinance 外盘/宏观与 AkShare 商品结构化数据时，显式打开：
+当前 CTP 快照主链路默认使用期宝图 PC API：`https://pc-api.qibaotu.com`。受保护接口需要在服务端环境变量里设置 `CTP_SNAPSHOT_AUTH_KEY`；该值只应放在 `.env`、CI/CD Variables 或服务器私有配置中，不要写入前端代码。
+
+默认配置会同时启用 CTP、yfinance 外盘/宏观与 AkShare 商品结构化数据。需要手动启动时也可以显式打开：
 
 ```bash
 ENABLE_YAHOO_MARKET_SOURCE=true ENABLE_AKSHARE_COMMODITY_SOURCE=true \
 uvicorn futures_research.api.app:app --host 127.0.0.1 --port 8025
 ```
+
+百炼 Coding Plan 走 Anthropic 兼容端：
+
+```dotenv
+ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic
+LLM_MODEL=kimi-k2.5
+```
+
+默认 `ANALYSIS_RENDER_MODE=hybrid`、`REPORT_RENDER_MODE=hybrid`，只有配置了 `ANTHROPIC_API_KEY` 时分析环节会调用模型做观点润色，研报正文仍由确定性模板写入数字和来源。若需要分析与研报撰写都调用模型，把两个模式都设为 `llm`，并确保百炼 key 可用。
 
 ## Current Repo Policy
 

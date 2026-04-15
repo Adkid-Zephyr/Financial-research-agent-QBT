@@ -50,8 +50,30 @@ cp .env.example .env
 如需启用真实 Anthropic 调用，请在 `.env` 中填写：
 
 ```dotenv
-ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_API_KEY=<百炼 Coding Plan key>
+ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic
+LLM_MODEL=kimi-k2.5
 ```
+
+默认 `ANALYSIS_RENDER_MODE=hybrid`、`REPORT_RENDER_MODE=hybrid`。该模式下，配置 key 后分析环节会调用模型生成结构化观点 brief，研报正文仍由确定性模板写入可核验数字。若需要分析和研报撰写都走模型调用，部署环境中设置：
+
+```dotenv
+ANALYSIS_RENDER_MODE=llm
+REPORT_RENDER_MODE=llm
+```
+
+CTP 快照主链路已切换到期宝图 PC API。部署环境需要在 `.env` 或 GitLab CI/CD Variables 的 `DEPLOY_ENV_FILE` 中配置：
+
+```dotenv
+CTP_SNAPSHOT_BASE_URL=https://pc-api.qibaotu.com
+CTP_SNAPSHOT_AUTH_KEY=<内部测试 header key>
+CTP_SNAPSHOT_SKIP_CRYPTO=true
+CTP_SNAPSHOT_SKIP_CHECK=true
+ENABLE_YAHOO_MARKET_SOURCE=true
+ENABLE_AKSHARE_COMMODITY_SOURCE=true
+```
+
+`CTP_SNAPSHOT_AUTH_KEY` 属于内部联调用 header，不要放入前端代码或公开文档。
 
 ## 4. 启动服务
 

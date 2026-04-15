@@ -18,7 +18,23 @@ OUTPUT_DIR = BASE_DIR / "outputs"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
-CTP_SNAPSHOT_BASE_URL = os.getenv("CTP_SNAPSHOT_BASE_URL", "http://192.168.152.69:8081")
+CTP_SNAPSHOT_BASE_URL = os.getenv("CTP_SNAPSHOT_BASE_URL", "https://pc-api.qibaotu.com")
+CTP_SNAPSHOT_AUTH_KEY = os.getenv("CTP_SNAPSHOT_AUTH_KEY", os.getenv("QIBAOTU_API_KEY", ""))
+CTP_SNAPSHOT_SKIP_CRYPTO = os.getenv("CTP_SNAPSHOT_SKIP_CRYPTO", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+CTP_SNAPSHOT_SKIP_CHECK = os.getenv("CTP_SNAPSHOT_SKIP_CHECK", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+CTP_SNAPSHOT_VERIFY_SSL = os.getenv("CTP_SNAPSHOT_VERIFY_SSL", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 CTP_REQUEST_TIMEOUT_SECONDS = float(os.getenv("CTP_REQUEST_TIMEOUT_SECONDS", "5"))
 LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
