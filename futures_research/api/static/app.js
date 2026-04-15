@@ -20,6 +20,15 @@ function pretty(value) {
   return JSON.stringify(value, null, 2);
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function formatTimestamp(value) {
   if (!value) {
     return "-";
@@ -112,43 +121,99 @@ function varietyLabel(item) {
   return `${item.name} ${item.code}`;
 }
 
+function selectedAdminVariety() {
+  return state.varieties.find((item) => item.code === $("#admin-symbol-select").value) || state.varieties[0];
+}
+
+function makePickerButton(label, active, onClick, subLabel = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = active ? "picker-option selected" : "picker-option";
+  button.innerHTML = subLabel
+    ? `<strong>${escapeHtml(label)}</strong><span>${escapeHtml(subLabel)}</span>`
+    : `<strong>${escapeHtml(label)}</strong>`;
+  button.setAttribute("aria-pressed", active ? "true" : "false");
+  button.addEventListener("click", onClick);
+  return button;
+}
+
 function populateAdminSymbolOptions() {
   if (!state.varieties.length) {
     return;
   }
-  const select = $("#admin-symbol-select");
-  const current = select.value || "CF";
-  select.innerHTML = "";
-  state.varieties.forEach((item) => {
-    const option = document.createElement("option");
-    option.value = item.code;
-    option.textContent = varietyLabel(item);
-    select.appendChild(option);
-  });
-  select.value = state.varieties.some((item) => item.code === current) ? current : state.varieties[0].code;
+  const hidden = $("#admin-symbol-select");
+  const current = hidden.value || "CF";
+  const selected = state.varieties.find((item) => item.code === current) || state.varieties[0];
+  hidden.value = selected.code;
+  $("#admin-symbol-trigger").textContent = varietyLabel(selected);
 }
 
 function updateAdminContractOptions(preferredContract = "") {
-  const symbol = $("#admin-symbol-select").value;
-  const contractSelect = $("#admin-contract-select");
-  const variety = state.varieties.find((item) => item.code === symbol);
-  contractSelect.innerHTML = "";
+  const contractHidden = $("#admin-contract-select");
+  const variety = selectedAdminVariety();
   if (!variety || !variety.contracts.length) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "默认合约";
-    contractSelect.appendChild(option);
-    contractSelect.disabled = true;
+    contractHidden.value = "";
+    $("#admin-contract-trigger").textContent = "暂无合约";
+    $("#admin-contract-trigger").disabled = true;
     return;
   }
-  variety.contracts.forEach((contract, index) => {
-    const option = document.createElement("option");
-    option.value = contract;
-    option.textContent = index === 0 ? `${contract}（默认）` : contract;
-    contractSelect.appendChild(option);
-  });
-  contractSelect.disabled = false;
-  contractSelect.value = variety.contracts.includes(preferredContract) ? preferredContract : variety.contracts[0];
+  const selectedContract = variety.contracts.includes(preferredContract)
+    ? preferredContract
+    : variety.contracts[0];
+  contractHidden.value = selectedContract;
+  $("#admin-contract-trigger").disabled = false;
+  $("#admin-contract-trigger").textContent = selectedContract === variety.contracts[0]
+    ? `${selectedContract}（主力）`
+    : selectedContract;
+}
+
+function closeAdminPickerModal() {
+  $("#admin-picker-modal").classList.add("hidden");
+}
+
+function openAdminPickerModal(kind) {
+  const modal = $("#admin-picker-modal");
+  const title = $("#admin-picker-modal-title");
+  const options = $("#admin-picker-options");
+  options.innerHTML = "";
+
+  if (kind === "symbol") {
+    title.textContent = "选择品种";
+    const selectedCode = $("#admin-symbol-select").value;
+    state.varieties.forEach((item) => {
+      options.appendChild(
+        makePickerButton(
+          item.name,
+          item.code === selectedCode,
+          () => {
+            $("#admin-symbol-select").value = item.code;
+            populateAdminSymbolOptions();
+            updateAdminContractOptions(item.contracts[0] || "");
+            closeAdminPickerModal();
+          },
+          `${item.code} · ${item.exchange}`
+        )
+      );
+    });
+  } else {
+    const variety = selectedAdminVariety();
+    title.textContent = `选择合约 - ${varietyLabel(variety)}`;
+    const selectedContract = $("#admin-contract-select").value;
+    variety.contracts.forEach((contract, index) => {
+      options.appendChild(
+        makePickerButton(
+          contract,
+          contract === selectedContract,
+          () => {
+            updateAdminContractOptions(contract);
+            closeAdminPickerModal();
+          },
+          index === 0 ? "主力合约" : "可选合约"
+        )
+      );
+    });
+  }
+  modal.classList.remove("hidden");
 }
 
 async function refreshVarieties() {
@@ -432,7 +497,14 @@ function bindEvents() {
   $("#connect-run-events").addEventListener("click", () => connectEvents("run"));
   $("#connect-batch-events").addEventListener("click", () => connectEvents("batch"));
   $("#disconnect-events").addEventListener("click", disconnectEvents);
-  $("#admin-symbol-select").addEventListener("change", () => updateAdminContractOptions());
+  $("#admin-symbol-trigger").addEventListener("click", () => openAdminPickerModal("symbol"));
+  $("#admin-contract-trigger").addEventListener("click", () => openAdminPickerModal("contract"));
+  $("#admin-picker-close").addEventListener("click", closeAdminPickerModal);
+  $("#admin-picker-modal").addEventListener("click", (event) => {
+    if (event.target.id === "admin-picker-modal") {
+      closeAdminPickerModal();
+    }
+  });
   $("#single-run-form").addEventListener("submit", async (event) => {
     try {
       await submitSingleRun(event);

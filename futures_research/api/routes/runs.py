@@ -8,6 +8,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field, model_validator
 
+from futures_research import config
 from futures_research.main import run_research
 from futures_research.models.batch import BatchResearchSummary
 from futures_research.models.state import WorkflowState
@@ -25,13 +26,29 @@ class RunTriggerRequest(BaseModel):
     symbol: str
     contract: Optional[str] = None
     target_date: date = Field(default_factory=date.today)
+    report_render_mode: Optional[str] = None
     research_profile: Dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_report_render_mode(self):
+        mode = self.report_render_mode or self.research_profile.get("report_render_mode")
+        if mode is None:
+            return self
+        normalized = str(mode).strip().lower()
+        if normalized not in config.SUPPORTED_REPORT_RENDER_MODES:
+            raise ValueError(
+                "report_render_mode must be one of: %s"
+                % ", ".join(sorted(config.SUPPORTED_REPORT_RENDER_MODES))
+            )
+        self.report_render_mode = normalized
+        return self
 
 
 class RunTriggerAccepted(BaseModel):
     status: str = "accepted"
     requested_symbol: str
     selected_contract: Optional[str] = None
+    selected_report_render_mode: str
     target_date: date
 
 
@@ -135,16 +152,20 @@ def list_varieties() -> List[VarietyOption]:
 @router.post("/runs", response_model=RunTriggerAccepted, status_code=status.HTTP_202_ACCEPTED)
 async def trigger_single_run(payload: RunTriggerRequest, request: Request) -> RunTriggerAccepted:
     resolved_symbol = _resolve_single_symbol(payload)
+    research_profile = dict(payload.research_profile)
+    if payload.report_render_mode:
+        research_profile["report_render_mode"] = payload.report_render_mode
     _spawn_background_task(
         _get_single_runner(request)(
             resolved_symbol,
             payload.target_date,
-            payload.research_profile,
+            research_profile,
         )
     )
     return RunTriggerAccepted(
         requested_symbol=payload.symbol.strip().upper(),
         selected_contract=resolved_symbol if payload.contract else None,
+        selected_report_render_mode=config.normalize_report_render_mode(research_profile.get("report_render_mode")),
         target_date=payload.target_date,
     )
 

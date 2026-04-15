@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 import yaml
 
 from futures_research import config
+from futures_research.contract_catalog import load_ctp_contract_catalog, merge_catalog_variety
 from futures_research.models.variety import VarietyDefinition
 
 
@@ -22,6 +23,13 @@ class VarietyRegistry:
             data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             variety = VarietyDefinition.model_validate(data)
             self._varieties[variety.code.upper()] = variety
+        if config.ENABLE_CTP_CONTRACT_CATALOG:
+            for variety in load_ctp_contract_catalog():
+                code = variety.code.upper()
+                if code in self._varieties:
+                    self._varieties[code] = merge_catalog_variety(self._varieties[code], variety)
+                else:
+                    self._varieties[code] = variety
 
     def register(self, variety: VarietyDefinition) -> None:
         self._varieties[variety.code.upper()] = variety
@@ -36,7 +44,7 @@ class VarietyRegistry:
         return matched
 
     def match_contract(self, contract: str) -> Optional[VarietyDefinition]:
-        for code, variety in self._varieties.items():
+        for code, variety in sorted(self._varieties.items(), key=lambda item: len(item[0]), reverse=True):
             if contract.startswith(code):
                 return variety
         return None

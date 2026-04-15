@@ -648,12 +648,18 @@ async def _build_grounded_llm_report(
     )
 
 
+def _resolve_report_render_mode(state: Dict[str, Any]) -> str:
+    request_context = dict(state.get("raw_data", {}).get("request_context", {}))
+    return config.normalize_report_render_mode(request_context.get("report_render_mode"))
+
+
 async def write_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[str, Any]:
     variety_definition = runtime.variety_registry.get(state["variety_code"])
     review_result = _load_review_result(state.get("review_result"))
     next_round = int(state.get("review_round", 0)) + 1
+    report_render_mode = _resolve_report_render_mode(state)
 
-    if config.REPORT_RENDER_MODE == "llm":
+    if report_render_mode == "llm":
         user_prompt = build_writer_user_prompt(
             variety_definition=variety_definition,
             prompt_repository=runtime.prompt_repository,
@@ -676,7 +682,7 @@ async def write_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[str
                 "requested_review_round": next_round,
             },
         )
-    elif config.REPORT_RENDER_MODE == "grounded_llm":
+    elif report_render_mode == "grounded_llm":
         report_draft = await _build_grounded_llm_report(
             state=state,
             runtime=runtime,

@@ -55,7 +55,7 @@ ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic
 LLM_MODEL=kimi-k2.5
 ```
 
-默认 `ANALYSIS_RENDER_MODE=hybrid`、`REPORT_RENDER_MODE=hybrid`。该模式下，配置 key 后分析环节会调用模型生成结构化观点 brief，研报正文仍由确定性模板写入可核验数字。若需要分析和研报撰写都走模型调用，部署环境中设置：
+默认 `ANALYSIS_RENDER_MODE=hybrid`、`REPORT_RENDER_MODE=hybrid`。该模式下，配置 key 后分析环节会调用模型生成结构化观点 brief，研报正文仍由确定性模板写入可核验数字。前端和 `/runs` API 可在单次运行里选择 `hybrid`、`llm`、`grounded_llm` 三种研报书写模式；若需要分析和研报撰写都默认走模型调用，部署环境中设置：
 
 ```dotenv
 ANALYSIS_RENDER_MODE=llm
@@ -71,9 +71,11 @@ CTP_SNAPSHOT_SKIP_CRYPTO=true
 CTP_SNAPSHOT_SKIP_CHECK=true
 ENABLE_YAHOO_MARKET_SOURCE=true
 ENABLE_AKSHARE_COMMODITY_SOURCE=true
+ENABLE_CTP_CONTRACT_CATALOG=true
 ```
 
 `CTP_SNAPSHOT_AUTH_KEY` 属于内部联调用 header，不要放入前端代码或公开文档。
+`ENABLE_CTP_CONTRACT_CATALOG=true` 会把仓库内置的 CTP 合约目录合并进注册表，人工 YAML 的提示词和扩展数据源配置仍优先保留。
 
 ## 4. 启动服务
 
@@ -114,6 +116,7 @@ docker compose logs -f app
 ```bash
 docker compose exec app python run.py --symbol CF
 docker compose exec app python run.py --symbol CF --contract CF2609
+docker compose exec app python run.py --symbol AU --contract AU2610 --report-render-mode grounded_llm
 ```
 
 批量：
@@ -133,7 +136,7 @@ docker compose exec app python run.py --all-varieties
 ```bash
 curl -X POST http://127.0.0.1:8080/runs \
   -H 'Content-Type: application/json' \
-  -d '{"symbol":"CF","contract":"CF2609","target_date":"2026-04-01"}'
+  -d '{"symbol":"CF","contract":"CF2609","target_date":"2026-04-01","report_render_mode":"hybrid"}'
 ```
 
 同进程 API 触发批量：

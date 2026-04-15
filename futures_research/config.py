@@ -11,6 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 VARIETIES_DIR = BASE_DIR / "varieties"
 VARIETY_PROMPTS_DIR = VARIETIES_DIR / "prompts"
 PROMPTS_DIR = BASE_DIR / "futures_research" / "prompts"
+CTP_CONTRACT_CATALOG_PATH = BASE_DIR / "futures_research" / "catalogs" / "ctp_contract_catalog.yaml"
 LOG_DIR = BASE_DIR / "logs"
 MEMORY_DIR = BASE_DIR / "memory"
 OUTPUT_DIR = BASE_DIR / "outputs"
@@ -41,6 +42,12 @@ LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
 ANALYSIS_RENDER_MODE = os.getenv("ANALYSIS_RENDER_MODE", "hybrid").lower()
 REPORT_RENDER_MODE = os.getenv("REPORT_RENDER_MODE", "hybrid").lower()
+SUPPORTED_REPORT_RENDER_MODES = {"hybrid", "llm", "grounded_llm"}
+ENABLE_CTP_CONTRACT_CATALOG = os.getenv("ENABLE_CTP_CONTRACT_CATALOG", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 ENABLE_ANTHROPIC_WEB_SEARCH = os.getenv("ENABLE_ANTHROPIC_WEB_SEARCH", "false").lower() in {
     "1",
     "true",
@@ -67,3 +74,11 @@ AKSHARE_COMMODITY_MAX_STALE_DAYS = int(os.getenv("AKSHARE_COMMODITY_MAX_STALE_DA
 DEFAULT_REPORT_WORD_TARGET = int(os.getenv("DEFAULT_REPORT_WORD_TARGET", "1800"))
 MIN_PASS_SCORE = float(os.getenv("MIN_PASS_SCORE", "75"))
 MAX_REVIEW_ROUNDS = int(os.getenv("MAX_REVIEW_ROUNDS", "2"))
+
+
+def normalize_report_render_mode(value: object, default: str | None = None) -> str:
+    fallback = (default or REPORT_RENDER_MODE or "hybrid").lower()
+    normalized = str(value or fallback).strip().lower()
+    if normalized not in SUPPORTED_REPORT_RENDER_MODES:
+        return fallback if fallback in SUPPORTED_REPORT_RENDER_MODES else "hybrid"
+    return normalized

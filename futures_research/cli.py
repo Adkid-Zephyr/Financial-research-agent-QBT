@@ -4,6 +4,7 @@ import argparse
 import asyncio
 from datetime import date
 
+from futures_research import config
 from futures_research.main import run_research
 from futures_research.scheduler import run_batch_research
 from futures_research.varieties import VarietyRegistry
@@ -16,6 +17,11 @@ def _parse_args():
     group.add_argument("--symbols", help="Comma-separated symbols for batch runs, e.g. CF,M")
     group.add_argument("--all-varieties", action="store_true", help="Run all configured variety codes as one batch")
     parser.add_argument("--contract", help="Configured contract to run for --symbol, e.g. CF2609")
+    parser.add_argument(
+        "--report-render-mode",
+        choices=sorted(config.SUPPORTED_REPORT_RENDER_MODES),
+        help="Report writing mode for a single run.",
+    )
     parser.add_argument("--target-date", default=date.today().isoformat(), help="Target date in YYYY-MM-DD")
     parser.add_argument("--concurrency", type=int, default=2, help="Batch concurrency, defaults to 2")
     args = parser.parse_args()
@@ -23,6 +29,8 @@ def _parse_args():
         parser.error("one of --symbol, --symbols, or --all-varieties is required")
     if args.contract and not args.symbol:
         parser.error("--contract can only be used with --symbol")
+    if args.report_render_mode and not args.symbol:
+        parser.error("--report-render-mode can only be used with --symbol")
     return args
 
 
@@ -47,7 +55,16 @@ def main() -> int:
     args = _parse_args()
     target_date = date.fromisoformat(args.target_date)
     if args.symbol:
-        final_state = asyncio.run(run_research(symbol=_resolve_single_symbol(args), target_date=target_date))
+        research_profile = {}
+        if args.report_render_mode:
+            research_profile["report_render_mode"] = args.report_render_mode
+        final_state = asyncio.run(
+            run_research(
+                symbol=_resolve_single_symbol(args),
+                target_date=target_date,
+                research_profile=research_profile,
+            )
+        )
         report = final_state.final_report
         review = final_state.review_result
         if report is None or review is None:

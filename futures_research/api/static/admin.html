@@ -95,22 +95,21 @@
           </div>
           <form id="single-run-form" class="form-grid">
             <label>
-              品种
-              <select id="admin-symbol-select" name="symbol" required>
-                <option value="CF">棉花 CF</option>
-                <option value="M">豆粕 M</option>
-                <option value="AU">沪金 AU</option>
-                <option value="AG">沪银 AG</option>
-                <option value="CU">沪铜 CU</option>
-                <option value="AL">沪铝 AL</option>
-                <option value="LC">碳酸锂 LC</option>
-                <option value="SI">工业硅 SI</option>
-              </select>
+              <span>品种</span>
+              <input id="admin-symbol-select" name="symbol" type="hidden" value="CF" />
+              <button id="admin-symbol-trigger" class="select-trigger" type="button">选择品种</button>
             </label>
             <label>
-              合约
-              <select id="admin-contract-select" name="contract">
-                <option value="">默认合约</option>
+              <span>合约</span>
+              <input id="admin-contract-select" name="contract" type="hidden" value="" />
+              <button id="admin-contract-trigger" class="select-trigger" type="button">选择合约</button>
+            </label>
+            <label>
+              书写模式
+              <select name="report_render_mode">
+                <option value="hybrid">hybrid</option>
+                <option value="llm">llm</option>
+                <option value="grounded_llm">grounded_llm</option>
               </select>
             </label>
             <label>
@@ -119,6 +118,15 @@
             </label>
             <button type="submit" class="primary">触发单品种</button>
           </form>
+          <div id="admin-picker-modal" class="picker-modal hidden" role="dialog" aria-modal="true" aria-labelledby="admin-picker-modal-title">
+            <div class="picker-dialog">
+              <div class="picker-head">
+                <h3 id="admin-picker-modal-title">选择</h3>
+                <button id="admin-picker-close" class="ghost" type="button">关闭</button>
+              </div>
+              <div id="admin-picker-options" class="picker-table" aria-label="可选列表"></div>
+            </div>
+          </div>
           <pre id="single-run-result" class="result-box"></pre>
         </section>
 

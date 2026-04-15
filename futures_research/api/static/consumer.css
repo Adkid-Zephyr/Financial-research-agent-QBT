@@ -248,13 +248,95 @@ button:hover,
 
 .field-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
 }
 
 .field-grid label {
   display: grid;
   gap: 7px;
+}
+
+.select-trigger {
+  width: 100%;
+  min-height: 46px;
+  border-color: var(--line);
+  background: #ffffff;
+  text-align: left;
+}
+
+.picker-table {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+  gap: 6px;
+  max-height: min(58vh, 420px);
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.picker-option {
+  display: grid;
+  gap: 3px;
+  min-height: 50px;
+  padding: 8px 9px;
+  border-color: var(--line);
+  background: var(--surface-strong);
+  color: var(--ink);
+  line-height: 1.25;
+  text-align: center;
+}
+
+.picker-option.selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.picker-option strong,
+.picker-option span {
+  display: block;
+}
+
+.picker-option span {
+  color: inherit;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.picker-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(22, 24, 27, 0.42);
+}
+
+.picker-dialog {
+  width: min(720px, 100%);
+  max-height: min(78vh, 680px);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.picker-head h3 {
+  margin: 0;
 }
 
 .status-grid {
@@ -487,6 +569,7 @@ button:hover,
   .progress-steps {
     grid-template-columns: 1fr;
   }
+
 }
 
 @media (max-width: 560px) {

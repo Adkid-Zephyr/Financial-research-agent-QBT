@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from futures_research import config
 from futures_research.data_sources.base import DataSourceAdapter, DataSourceRegistry
+from futures_research.agents.writer import write_node
 from futures_research.llm import client as llm_client_module
 from futures_research.main import run_research
 from futures_research.models.source import SourcePayload
@@ -98,11 +99,11 @@ class RevisionAwareLLMClient:
 
 ## 二、基本面分析
 ### 供给端
-供给平稳。（来源：CTP snapshot API）
+供给平稳。（来源：AkShare structured commodity data）
 ### 需求端
-需求平稳。（来源：CTP snapshot API）
+需求平稳。（来源：AkShare structured commodity data）
 ### 库存与持仓
-库存 50 万吨，持仓变化 4%。（来源：CTP snapshot API）
+持仓数据已由 CTP 快照登记，库存暂无可核验数据。（来源：CTP snapshot API；AkShare structured commodity data）
 
 ## 三、国际市场
 ICE 与美元波动温和。（来源：Yahoo Finance via yfinance）
@@ -120,6 +121,16 @@ ICE 与美元波动温和。（来源：Yahoo Finance via yfinance）
 
 本报告由AI自动生成，仅供参考，不构成投资建议。
 """.strip()
+
+
+class RecordingReportLLMClient:
+    def __init__(self):
+        self.report_contexts = []
+
+    async def generate_report(self, prompt, context):
+        del prompt
+        self.report_contexts.append(context)
+        return "# LLM研报\n\n本报告由AI自动生成，仅供参考，不构成投资建议。"
 
 
 class AlwaysFailLLMClient(RevisionAwareLLMClient):
@@ -370,7 +381,12 @@ class WorkflowTests(unittest.TestCase):
 
     def test_registry_scan_lists_all_expected_varieties(self):
         runtime = build_runtime()
-        self.assertEqual(runtime.variety_registry.list_codes(), ["AG", "AL", "AU", "CF", "CU", "LC", "M", "SI"])
+        codes = runtime.variety_registry.list_codes()
+        self.assertGreaterEqual(len(codes), 60)
+        for code in ["AG", "AL", "AU", "CF", "CU", "LC", "M", "SC", "IF", "TF", "ZN"]:
+            self.assertIn(code, codes)
+        self.assertEqual(runtime.variety_registry.get("AU2610").code, "AU")
+        self.assertEqual(runtime.variety_registry.get("A2605").code, "A")
 
     def test_run_research_persists_report_when_repository_is_configured(self):
         with TemporaryDirectory() as temp_dir:
@@ -458,6 +474,31 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("analysis_brief", final_state.raw_data)
         self.assertIn("盘面定价偏强", final_state.report_draft)
         self.assertIn("CTP snapshot API", final_state.report_draft)
+
+    def test_request_context_can_override_report_render_mode_for_single_run(self):
+        runtime = build_runtime()
+        fake_llm = RecordingReportLLMClient()
+        runtime.llm_client = fake_llm
+        state = {
+            "symbol": "CF2605",
+            "variety_code": "CF",
+            "target_date": date.today(),
+            "analysis_result": "维持中性观察。",
+            "raw_data": {
+                "request_context": {"report_render_mode": "llm"},
+                "metrics": {},
+                "sources": [],
+                "data_gaps": [],
+            },
+            "review_round": 0,
+        }
+
+        with patch.object(config, "REPORT_RENDER_MODE", "hybrid"):
+            result = asyncio.run(write_node(state, runtime))
+
+        self.assertEqual(result["report_draft"], "# LLM研报\n\n本报告由AI自动生成，仅供参考，不构成投资建议。")
+        self.assertEqual(len(fake_llm.report_contexts), 1)
+        self.assertEqual(fake_llm.report_contexts[0]["contract"], "CF2605")
 
     def test_hybrid_workflow_embeds_yahoo_external_numbers_deterministically(self):
         runtime = build_runtime()
