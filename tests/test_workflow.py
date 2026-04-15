@@ -217,6 +217,38 @@ class ShortHybridLLMClient(HybridLLMClient):
 """.strip()
 
 
+class GroundedDraftLLMClient(HybridLLMClient):
+    async def generate_report(self, prompt, context):
+        del prompt, context
+        return """
+# 沪金期货日报 — AU2606 [2026-04-10]
+
+> **核心观点**：AU2606 偏多，但这里故意写入 999 这个证据包外数字。[F1]
+> **情绪**：偏多 | **置信度**：中
+
+## 一、结论先行
+AU2606 基于已核验盘面事实维持偏多观察，但 999 不应通过校验。[F1]
+
+## 二、盘面定价与期限结构
+最新价 750，价差 -2。[F1][F2]
+
+## 三、外盘、宏观与期现联动
+COMEX黄金作为外盘参照。[F3]
+
+## 四、基本面验证与缺口
+当前仍有数据缺口。[G1]
+
+## 五、核心驱动因子
+1. 盘面偏强。[F1]
+
+## 六、风险提示
+1. 数据缺口可能影响判断。[G1]
+
+## 七、数据来源与合规说明
+本报告由AI自动生成，仅供参考，不构成投资建议。
+""".strip()
+
+
 class FakeCTPSource(DataSourceAdapter):
     source_type = "ctp_snapshot"
 
@@ -482,6 +514,32 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("研究边界需要被明确写出", final_state.report_draft)
         self.assertIn("Yahoo Finance via yfinance", final_state.report_draft)
         self.assertTrue(final_state.review_result.passed)
+
+    def test_grounded_llm_marks_draft_when_evidence_validation_fails(self):
+        runtime = build_runtime()
+        registry = DataSourceRegistry()
+        registry.register(FakeCTPSource())
+        registry.register(FakeYahooSource())
+        runtime.data_source_registry = registry
+        runtime.llm_client = GroundedDraftLLMClient()
+        workflow = build_workflow(runtime)
+
+        initial_state = WorkflowState(
+            symbol="AU2606",
+            variety_code="AU",
+            variety="沪金",
+            target_date=date(2026, 4, 10),
+            max_review_rounds=1,
+        )
+        with patch.object(config, "ANALYSIS_RENDER_MODE", "hybrid"), patch.object(config, "REPORT_RENDER_MODE", "grounded_llm"):
+            result = asyncio.run(workflow.ainvoke(initial_state.model_dump()))
+        final_state = WorkflowState.model_validate(result)
+
+        self.assertIn("999 这个证据包外数字", final_state.report_draft)
+        self.assertIn("未通过合规审查，卡在第四步", final_state.report_draft)
+        self.assertIn("数字或百分比未出现在证据包：999", final_state.report_draft)
+        self.assertFalse(final_state.review_result.passed)
+        self.assertIn("grounded LLM 第四步合规审查未通过", final_state.review_result.blocking_issues)
 
 
 if __name__ == "__main__":

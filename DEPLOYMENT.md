@@ -113,6 +113,7 @@ docker compose logs -f app
 
 ```bash
 docker compose exec app python run.py --symbol CF
+docker compose exec app python run.py --symbol CF --contract CF2609
 ```
 
 批量：
@@ -132,7 +133,7 @@ docker compose exec app python run.py --all-varieties
 ```bash
 curl -X POST http://127.0.0.1:8080/runs \
   -H 'Content-Type: application/json' \
-  -d '{"symbol":"CF","target_date":"2026-04-01"}'
+  -d '{"symbol":"CF","contract":"CF2609","target_date":"2026-04-01"}'
 ```
 
 同进程 API 触发批量：

@@ -3,6 +3,7 @@ const consumerState = {
   activeRunId: "",
   activeReport: null,
   library: [],
+  varieties: [],
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -176,10 +177,63 @@ async function refreshHealth() {
   $("#search-boundary").textContent = payload.web_search_enabled ? "web search 已启用" : "web search 未启用";
 }
 
+function varietyLabel(item) {
+  return `${item.name} ${item.code}`;
+}
+
+function populateSymbolOptions() {
+  if (!consumerState.varieties.length) {
+    return;
+  }
+  const select = $("#symbol-select");
+  const current = select.value || "CF";
+  select.innerHTML = "";
+  consumerState.varieties.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.code;
+    option.textContent = varietyLabel(item);
+    select.appendChild(option);
+  });
+  select.value = consumerState.varieties.some((item) => item.code === current)
+    ? current
+    : consumerState.varieties[0].code;
+}
+
+function updateContractOptions(preferredContract = "") {
+  const symbol = $("#symbol-select").value;
+  const contractSelect = $("#contract-select");
+  const variety = consumerState.varieties.find((item) => item.code === symbol);
+  contractSelect.innerHTML = "";
+  if (!variety || !variety.contracts.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "默认合约";
+    contractSelect.appendChild(option);
+    contractSelect.disabled = true;
+    return;
+  }
+  variety.contracts.forEach((contract, index) => {
+    const option = document.createElement("option");
+    option.value = contract;
+    option.textContent = index === 0 ? `${contract}（默认）` : contract;
+    contractSelect.appendChild(option);
+  });
+  contractSelect.disabled = false;
+  contractSelect.value = variety.contracts.includes(preferredContract) ? preferredContract : variety.contracts[0];
+}
+
+async function refreshVarieties() {
+  const payload = await requestJson("/varieties");
+  consumerState.varieties = payload;
+  populateSymbolOptions();
+  updateContractOptions();
+}
+
 function buildRunPayload(form) {
   const data = new FormData(form);
   return {
     symbol: String(data.get("symbol") || "CF"),
+    contract: String(data.get("contract") || "").trim(),
     target_date: String(data.get("target_date") || todayText()),
     research_profile: {
       persona: String(data.get("persona") || "institution"),
@@ -307,6 +361,7 @@ async function refreshLibrary() {
 function bindConsumerEvents() {
   $("#target-date").value = todayText();
   $("#consumer-run-form").addEventListener("submit", submitResearch);
+  $("#symbol-select").addEventListener("change", () => updateContractOptions());
   $("#refresh-consumer-health").addEventListener("click", async () => {
     try {
       await refreshHealth();
@@ -331,6 +386,7 @@ function bindConsumerEvents() {
 
 bindConsumerEvents();
 connectEvents();
+refreshVarieties().catch(() => updateContractOptions());
 refreshHealth().catch(() => {
   $("#health-status").textContent = "检查失败";
 });

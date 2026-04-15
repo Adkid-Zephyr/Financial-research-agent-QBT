@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from typing import Any, Dict, Optional
 
@@ -415,6 +416,238 @@ def _build_deterministic_report(
     )
 
 
+def _compact_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+
+
+def _build_grounded_evidence_pack(state: Dict[str, Any], variety_definition: VarietyDefinition) -> Dict[str, Any]:
+    raw_data = state["raw_data"]
+    metrics = raw_data.get("metrics", {})
+    sources = raw_data.get("sources", [])
+    facts = []
+    gaps = []
+
+    def add_fact(text: str, source: str) -> None:
+        if text and text not in [item["text"] for item in facts]:
+            facts.append({"id": "F%d" % (len(facts) + 1), "text": text, "source": source})
+
+    def add_gap(text: str) -> None:
+        if text and text not in [item["text"] for item in gaps]:
+            gaps.append({"id": "G%d" % (len(gaps) + 1), "text": text})
+
+    primary = _snapshot(raw_data, "primary")
+    secondary = _snapshot(raw_data, "secondary")
+    if primary:
+        add_fact(
+            "目标合约 {instrument_id} 交易日 {trading_day} 更新时间 {update_time} 最新价 {price} 买一 {bid} 卖一 {ask} 涨跌 {change} 涨跌幅 {change_pct} 持仓量 {open_interest} 成交量 {volume}。".format(
+                instrument_id=primary.get("instrument_id") or metrics.get("主数据合约ID", state["symbol"]),
+                trading_day=primary.get("trading_day") or metrics.get("主力合约交易日", "暂无"),
+                update_time=primary.get("update_time") or metrics.get("主力合约更新时间", "暂无"),
+                price=metrics.get("主力合约参考价", "暂无"),
+                bid=metrics.get("主力合约买一", "暂无"),
+                ask=metrics.get("主力合约卖一", "暂无"),
+                change=metrics.get("主力合约涨跌", "暂无"),
+                change_pct=metrics.get("主力合约涨跌幅", "暂无"),
+                open_interest=metrics.get("主力合约持仓量", "暂无"),
+                volume=metrics.get("主力合约成交量", "暂无"),
+            ),
+            "CTP snapshot API",
+        )
+    if secondary:
+        add_fact(
+            "参照合约 {instrument_id} 参考价 {price}，目标合约与参照合约价差 {spread}。".format(
+                instrument_id=secondary.get("instrument_id") or metrics.get("次数据合约ID", "暂无"),
+                price=metrics.get("次主力合约参考价", "暂无"),
+                spread=metrics.get("近月-远月价差", "暂无"),
+            ),
+            "CTP snapshot API",
+        )
+
+    for item in _external_market_items(raw_data):
+        unit = item.get("unit") or ""
+        add_fact(
+            "{name}（{ticker}）截至 {as_of_date} 收盘价 {close}{unit}，涨跌 {change}{unit}，涨跌幅 {change_pct}。".format(
+                name=item.get("name") or "外盘资产",
+                ticker=item.get("ticker") or "暂无",
+                as_of_date=item.get("as_of_date") or "暂无",
+                close=item.get("close") or "暂无",
+                unit=unit,
+                change=item.get("change") or "暂无",
+                change_pct=item.get("change_pct") or "暂无",
+            ),
+            "Yahoo Finance via yfinance",
+        )
+
+    for item in _fundamental_items(raw_data):
+        item_type = item.get("item_type")
+        if item_type == "spot_basis":
+            add_fact(
+                "{name}截至 {as_of_date} 现货价格 {spot_price}，主力合约 {contract} 对应基差 {basis}，基差率 {basis_rate}。".format(
+                    name=item.get("name") or "现货基差",
+                    as_of_date=item.get("as_of_date") or "暂无",
+                    spot_price=item.get("spot_price") or "暂无",
+                    contract=item.get("dominant_contract") or "暂无",
+                    basis=item.get("dom_basis") or "暂无",
+                    basis_rate=item.get("dom_basis_rate") or "暂无",
+                ),
+                "AkShare structured commodity data",
+            )
+        elif item_type == "domestic_spot":
+            unit = item.get("unit") or ""
+            add_fact(
+                "{name}截至 {as_of_date} 收盘价 {close}{unit}，日内低点 {low}{unit}，日内高点 {high}{unit}。".format(
+                    name=item.get("name") or "国内现货",
+                    as_of_date=item.get("as_of_date") or "暂无",
+                    close=item.get("close") or "暂无",
+                    low=item.get("low") or "暂无",
+                    high=item.get("high") or "暂无",
+                    unit=unit,
+                ),
+                "AkShare structured commodity data",
+            )
+        elif item_type == "inventory":
+            add_fact(
+                "{name}截至 {as_of_date} 库存 {inventory_ton} 吨。".format(
+                    name=item.get("name") or "库存",
+                    as_of_date=item.get("as_of_date") or "暂无",
+                    inventory_ton=item.get("inventory_ton") or "暂无",
+                ),
+                "AkShare structured commodity data",
+            )
+        else:
+            add_fact(_compact_json(item), "AkShare structured commodity data")
+
+    for fact in raw_data.get("verified_facts", []):
+        add_fact(str(fact), "structured verified facts")
+    for gap in raw_data.get("data_gaps", []):
+        add_gap(str(gap))
+
+    return {
+        "variety": state["variety"],
+        "variety_code": variety_definition.code,
+        "contract": state["symbol"],
+        "target_date": str(state["target_date"]),
+        "allowed_sources": sorted(set(str(item) for item in sources + [
+            "CTP snapshot API",
+            "Yahoo Finance via yfinance",
+            "AkShare structured commodity data",
+            "数据覆盖范围说明",
+        ])),
+        "facts": facts,
+        "gaps": gaps,
+        "key_factors": variety_definition.key_factors,
+        "analysis_result": state.get("analysis_result", ""),
+        "request_context": raw_data.get("request_context", {}),
+    }
+
+
+def _build_grounded_prompt(evidence_pack: Dict[str, Any], review_result: Optional[ReviewResult]) -> str:
+    review_feedback = ""
+    if review_result and not review_result.passed:
+        review_feedback = "上一轮审核反馈：%s\n必须修复：%s" % (
+            review_result.feedback,
+            "；".join(review_result.blocking_issues) or "无",
+        )
+    return """
+你是高级商品期货研究员，请写一篇更接近成熟研究所风格的中文期货日报。
+
+硬性规则：
+1. 只能使用 evidence_pack 中的事实、缺口和来源。
+2. 正文中出现的每个数字、日期、百分比、合约代码、来源名，都必须能在 evidence_pack 中找到。
+3. 每个包含事实判断的段落末尾必须引用证据编号，例如 [F1][F3]；数据缺口引用 [G1]。
+4. 不得编造库存、仓单、开工、进口、政策、机构观点、新闻事件或交易建议。
+5. 可以做研究判断，但必须把判断写成“基于已核验事实的推论”，并说明边界。
+6. 必须包含 AI 免责声明：“本报告由AI自动生成，仅供参考，不构成投资建议。”
+7. 输出完整 Markdown，不要输出 JSON。
+
+建议结构：
+# 品种期货日报 — 合约 [日期]
+> 核心观点
+> 情绪与置信度
+
+## 一、结论先行
+## 二、盘面定价与期限结构
+## 三、外盘、宏观与期现联动
+## 四、基本面验证与缺口
+## 五、核心驱动因子
+## 六、风险提示
+## 七、数据来源与合规说明
+
+{review_feedback}
+
+evidence_pack:
+{evidence_pack}
+""".strip().format(
+        review_feedback=review_feedback or "本轮为首轮成稿。",
+        evidence_pack=json.dumps(evidence_pack, ensure_ascii=False, indent=2, default=str),
+    )
+
+
+def _line_for_position(text: str, position: int) -> str:
+    start = text.rfind("\n", 0, position) + 1
+    end = text.find("\n", position)
+    if end == -1:
+        end = len(text)
+    return text[start:end]
+
+
+def _extract_numeric_mentions_for_grounding(text: str) -> list[tuple[str, int]]:
+    mentions = []
+    for match in re.finditer(r"(?<![A-Za-z])[-+]?\d+(?:,\d{3})*(?:\.\d+)?%?", text):
+        line = _line_for_position(text, match.start()).strip()
+        token = match.group(0)
+        if re.match(r"^#{1,6}\s+", line):
+            continue
+        if re.match(r"^\d+\.\s+", line) and line.startswith(token.rstrip("%")):
+            continue
+        if re.search(r"\[(?:F|G)%s\]" % re.escape(token.rstrip("%")), line):
+            continue
+        mentions.append((token, match.start()))
+    return mentions
+
+
+def _validate_grounded_report(draft: str, evidence_pack: Dict[str, Any]) -> list[str]:
+    evidence_text = json.dumps(evidence_pack, ensure_ascii=False, default=str)
+    violations = []
+    for token, _position in _extract_numeric_mentions_for_grounding(draft):
+        normalized = token.replace(",", "")
+        if token not in evidence_text and normalized not in evidence_text:
+            violations.append("数字或百分比未出现在证据包：%s" % token)
+
+    allowed_sources = evidence_pack.get("allowed_sources", [])
+    for label in re.findall(r"来源[:：]([^\n）)]+)", draft):
+        if not any(label.strip().startswith(str(source)) for source in allowed_sources):
+            violations.append("来源未登记：%s" % label.strip())
+
+    if "本报告由AI自动生成，仅供参考，不构成投资建议" not in draft:
+        violations.append("缺少指定 AI 免责声明")
+    if not re.search(r"\[F\d+\]", draft):
+        violations.append("正文未引用任何事实编号")
+
+    return sorted(set(violations))
+
+
+async def _build_grounded_llm_report(
+    state: Dict[str, Any],
+    runtime: RuntimeContext,
+    variety_definition: VarietyDefinition,
+    review_result: Optional[ReviewResult],
+) -> str:
+    evidence_pack = _build_grounded_evidence_pack(state, variety_definition)
+    prompt = _build_grounded_prompt(evidence_pack, review_result)
+    draft = await runtime.llm_client.generate_report(
+        prompt,
+        context={"evidence_pack": evidence_pack},
+    )
+    violations = _validate_grounded_report(draft, evidence_pack)
+    if not violations:
+        return draft
+    return "{draft}\n\n---\n\n**合规审查结果**：未通过合规审查，卡在第四步。  \n**未通过原因**：{violations}\n".format(
+        draft=draft.rstrip(),
+        violations="；".join(violations),
+    )
+
+
 async def write_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[str, Any]:
     variety_definition = runtime.variety_registry.get(state["variety_code"])
     review_result = _load_review_result(state.get("review_result"))
@@ -442,6 +675,13 @@ async def write_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[str
                 "blocking_issues": review_result.blocking_issues if review_result else [],
                 "requested_review_round": next_round,
             },
+        )
+    elif config.REPORT_RENDER_MODE == "grounded_llm":
+        report_draft = await _build_grounded_llm_report(
+            state=state,
+            runtime=runtime,
+            variety_definition=variety_definition,
+            review_result=review_result,
         )
     else:
         report_draft = _build_deterministic_report(state, variety_definition, review_result, next_round)

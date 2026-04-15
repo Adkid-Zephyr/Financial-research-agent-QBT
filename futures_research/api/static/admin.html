@@ -95,8 +95,23 @@
           </div>
           <form id="single-run-form" class="form-grid">
             <label>
-              品种 / 合约
-              <input name="symbol" value="CF" placeholder="CF 或 CF2605" required />
+              品种
+              <select id="admin-symbol-select" name="symbol" required>
+                <option value="CF">棉花 CF</option>
+                <option value="M">豆粕 M</option>
+                <option value="AU">沪金 AU</option>
+                <option value="AG">沪银 AG</option>
+                <option value="CU">沪铜 CU</option>
+                <option value="AL">沪铝 AL</option>
+                <option value="LC">碳酸锂 LC</option>
+                <option value="SI">工业硅 SI</option>
+              </select>
+            </label>
+            <label>
+              合约
+              <select id="admin-contract-select" name="contract">
+                <option value="">默认合约</option>
+              </select>
             </label>
             <label>
               目标日期
@@ -117,7 +132,7 @@
           <form id="batch-run-form" class="form-grid">
             <label>
               品种列表
-              <input name="symbols" value="CF,M,AU,AG,CU,AL,LC,SI" placeholder="CF,M,AU,AG,CU,AL,LC,SI" />
+              <input name="symbols" value="CF,M,AU,AG,CU,AL,LC,SI" placeholder="CF2609,M2609,AU2612" />
             </label>
             <label>
               目标日期

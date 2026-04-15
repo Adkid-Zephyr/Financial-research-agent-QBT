@@ -424,7 +424,7 @@ async def analyze_node(state: Dict[str, Any], runtime: RuntimeContext) -> Dict[s
             "analysis_result": analysis_result,
         }
 
-    if config.ANALYSIS_RENDER_MODE == "hybrid" and runtime.llm_client.is_live:
+    if config.ANALYSIS_RENDER_MODE in {"hybrid", "grounded_llm"} and runtime.llm_client.is_live:
         try:
             brief = await _generate_hybrid_brief(state, runtime, variety_definition, review_result, next_round)
         except Exception:

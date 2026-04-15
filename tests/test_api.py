@@ -105,6 +105,7 @@ class ApiTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("问一句，得到一份有数据边界的期货日报", response.text)
+        self.assertIn("contract-select", response.text)
         self.assertIn("/admin", response.text)
         self.assertEqual(response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
 
@@ -113,6 +114,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("期货投研 Agent 测试控制台", response.text)
         self.assertIn("batch-run-form", response.text)
+        self.assertIn("admin-contract-select", response.text)
         self.assertEqual(response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
 
     def test_healthz_exposes_llm_status(self):
@@ -123,6 +125,14 @@ class ApiTests(unittest.TestCase):
         self.assertIn("llm_base_url", payload)
         self.assertIn("started_at", payload)
         self.assertIn("process_id", payload)
+
+    def test_list_varieties_exposes_configured_contracts(self):
+        response = self.client.get("/varieties")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        cf = next(item for item in payload if item["code"] == "CF")
+        self.assertEqual(cf["default_contract"], "CF2605")
+        self.assertIn("CF2609", cf["contracts"])
 
     def test_trigger_single_run(self):
         called = threading.Event()
@@ -155,6 +165,41 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(received["research_profile"]["persona"], "hedging")
         finally:
             client.close()
+
+    def test_trigger_single_run_accepts_selected_contract(self):
+        called = threading.Event()
+        received = {}
+
+        async def fake_runner(symbol, target_date, research_profile=None):
+            received["symbol"] = symbol
+            received["target_date"] = target_date
+            received["research_profile"] = research_profile
+            called.set()
+            return self.sample_state
+
+        client = TestClient(create_app(self.repository))
+        try:
+            client.app.state.run_single = fake_runner
+
+            response = client.post(
+                "/runs",
+                json={"symbol": "cf", "contract": "cf2609", "target_date": "2026-04-01"},
+            )
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(response.json()["requested_symbol"], "CF")
+            self.assertEqual(response.json()["selected_contract"], "CF2609")
+            self.assertTrue(called.wait(2))
+            self.assertEqual(received["symbol"], "CF2609")
+        finally:
+            client.close()
+
+    def test_trigger_single_run_rejects_unknown_selected_contract(self):
+        response = self.client.post(
+            "/runs",
+            json={"symbol": "cf", "contract": "CF9999", "target_date": "2026-04-01"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Available contracts", response.json()["detail"])
 
     def test_trigger_batch_run(self):
         called = threading.Event()
