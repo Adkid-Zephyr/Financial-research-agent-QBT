@@ -4,7 +4,7 @@ exchange: SHFE
 contracts:
   - AG2606
   - AG2612
-  - AG2703
+  - AG2608
 key_factors:
   - 美元指数与美国实际利率变化
   - 金银比修复与贵金属板块联动

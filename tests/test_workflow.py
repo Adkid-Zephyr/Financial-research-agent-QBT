@@ -105,7 +105,7 @@ class RevisionAwareLLMClient:
 库存 50 万吨，持仓变化 4%。（来源：CTP snapshot API）
 
 ## 三、国际市场
-ICE 与美元波动温和。（来源：CTP snapshot API）
+ICE 与美元波动温和。（来源：Yahoo Finance via yfinance）
 
 ## 四、近期重要资讯
 - 资讯 1（来源：CTP snapshot API）
