@@ -8,7 +8,7 @@ class VarietyConfigTests(unittest.TestCase):
         registry = VarietyRegistry()
         registry.scan()
 
-        for code in registry.list_codes():
+        for code in ["AG", "AL", "AU", "CF", "CU", "LC", "M", "SI"]:
             with self.subTest(code=code):
                 variety = registry.get(code)
                 source_types = {source.type for source in variety.data_sources}
@@ -19,6 +19,17 @@ class VarietyConfigTests(unittest.TestCase):
                 akshare_config = next(source for source in variety.data_sources if source.type == "akshare_commodity")
                 module_types = {module.get("type") for module in akshare_config.params.get("modules", [])}
                 self.assertIn("spot_basis", module_types)
+
+    def test_catalog_varieties_have_snapshot_source(self):
+        registry = VarietyRegistry()
+        registry.scan()
+
+        for code in ["A", "SC", "IF", "ZN"]:
+            with self.subTest(code=code):
+                variety = registry.get(code)
+                source_types = {source.type for source in variety.data_sources}
+                self.assertIn("ctp_snapshot", source_types)
+                self.assertGreater(len(variety.contracts), 0)
 
 
 if __name__ == "__main__":

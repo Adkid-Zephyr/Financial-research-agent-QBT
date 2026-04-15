@@ -181,45 +181,99 @@ function varietyLabel(item) {
   return `${item.name} ${item.code}`;
 }
 
+function selectedVariety() {
+  return consumerState.varieties.find((item) => item.code === $("#symbol-select").value) || consumerState.varieties[0];
+}
+
+function makePickerButton(label, active, onClick, subLabel = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = active ? "picker-option selected" : "picker-option";
+  button.innerHTML = subLabel
+    ? `<strong>${escapeHtml(label)}</strong><span>${escapeHtml(subLabel)}</span>`
+    : `<strong>${escapeHtml(label)}</strong>`;
+  button.setAttribute("aria-pressed", active ? "true" : "false");
+  button.addEventListener("click", onClick);
+  return button;
+}
+
 function populateSymbolOptions() {
   if (!consumerState.varieties.length) {
     return;
   }
-  const select = $("#symbol-select");
-  const current = select.value || "CF";
-  select.innerHTML = "";
-  consumerState.varieties.forEach((item) => {
-    const option = document.createElement("option");
-    option.value = item.code;
-    option.textContent = varietyLabel(item);
-    select.appendChild(option);
-  });
-  select.value = consumerState.varieties.some((item) => item.code === current)
-    ? current
-    : consumerState.varieties[0].code;
+  const hidden = $("#symbol-select");
+  const current = hidden.value || "CF";
+  const selected = consumerState.varieties.find((item) => item.code === current) || consumerState.varieties[0];
+  hidden.value = selected.code;
+  $("#symbol-trigger").textContent = varietyLabel(selected);
 }
 
 function updateContractOptions(preferredContract = "") {
-  const symbol = $("#symbol-select").value;
-  const contractSelect = $("#contract-select");
-  const variety = consumerState.varieties.find((item) => item.code === symbol);
-  contractSelect.innerHTML = "";
+  const contractHidden = $("#contract-select");
+  const variety = selectedVariety();
   if (!variety || !variety.contracts.length) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "默认合约";
-    contractSelect.appendChild(option);
-    contractSelect.disabled = true;
+    contractHidden.value = "";
+    $("#contract-trigger").textContent = "暂无合约";
+    $("#contract-trigger").disabled = true;
     return;
   }
-  variety.contracts.forEach((contract, index) => {
-    const option = document.createElement("option");
-    option.value = contract;
-    option.textContent = index === 0 ? `${contract}（默认）` : contract;
-    contractSelect.appendChild(option);
-  });
-  contractSelect.disabled = false;
-  contractSelect.value = variety.contracts.includes(preferredContract) ? preferredContract : variety.contracts[0];
+  const selectedContract = variety.contracts.includes(preferredContract)
+    ? preferredContract
+    : variety.contracts[0];
+  contractHidden.value = selectedContract;
+  $("#contract-trigger").disabled = false;
+  $("#contract-trigger").textContent = selectedContract === variety.contracts[0]
+    ? `${selectedContract}（主力）`
+    : selectedContract;
+}
+
+function closePickerModal() {
+  $("#picker-modal").classList.add("hidden");
+}
+
+function openPickerModal(kind) {
+  const modal = $("#picker-modal");
+  const title = $("#picker-modal-title");
+  const options = $("#picker-options");
+  options.innerHTML = "";
+
+  if (kind === "symbol") {
+    title.textContent = "选择品种";
+    const selectedCode = $("#symbol-select").value;
+    consumerState.varieties.forEach((item) => {
+      options.appendChild(
+        makePickerButton(
+          item.name,
+          item.code === selectedCode,
+          () => {
+            $("#symbol-select").value = item.code;
+            populateSymbolOptions();
+            updateContractOptions(item.contracts[0] || "");
+            closePickerModal();
+          },
+          `${item.code} · ${item.exchange}`
+        )
+      );
+    });
+  } else {
+    const variety = selectedVariety();
+    title.textContent = `选择合约 - ${varietyLabel(variety)}`;
+    const selectedContract = $("#contract-select").value;
+    variety.contracts.forEach((contract, index) => {
+      options.appendChild(
+        makePickerButton(
+          contract,
+          contract === selectedContract,
+          () => {
+            updateContractOptions(contract);
+            closePickerModal();
+          },
+          index === 0 ? "主力合约" : "可选合约"
+        )
+      );
+    });
+  }
+  modal.classList.remove("hidden");
 }
 
 async function refreshVarieties() {
@@ -235,6 +289,7 @@ function buildRunPayload(form) {
     symbol: String(data.get("symbol") || "CF"),
     contract: String(data.get("contract") || "").trim(),
     target_date: String(data.get("target_date") || todayText()),
+    report_render_mode: String(data.get("report_render_mode") || "hybrid"),
     research_profile: {
       persona: String(data.get("persona") || "institution"),
       user_focus: String(data.get("prompt") || "").trim(),
@@ -361,7 +416,14 @@ async function refreshLibrary() {
 function bindConsumerEvents() {
   $("#target-date").value = todayText();
   $("#consumer-run-form").addEventListener("submit", submitResearch);
-  $("#symbol-select").addEventListener("change", () => updateContractOptions());
+  $("#symbol-trigger").addEventListener("click", () => openPickerModal("symbol"));
+  $("#contract-trigger").addEventListener("click", () => openPickerModal("contract"));
+  $("#picker-close").addEventListener("click", closePickerModal);
+  $("#picker-modal").addEventListener("click", (event) => {
+    if (event.target.id === "picker-modal") {
+      closePickerModal();
+    }
+  });
   $("#refresh-consumer-health").addEventListener("click", async () => {
     try {
       await refreshHealth();

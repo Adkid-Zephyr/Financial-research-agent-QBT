@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Dict, Optional
 
+from futures_research import config
 from futures_research.events import get_current_batch_id, publish_event
 from futures_research.models.state import WorkflowState
 from futures_research.runtime import build_runtime
@@ -24,6 +25,7 @@ def _build_request_context(research_profile: Optional[Dict[str, Any]]) -> Dict[s
         "persona": persona if persona in allowed_personas else "institution",
         "persona_label": allowed_personas.get(persona, "机构研究"),
         "user_focus": str(profile.get("user_focus") or profile.get("prompt") or "").strip(),
+        "report_render_mode": config.normalize_report_render_mode(profile.get("report_render_mode")),
     }
 
 

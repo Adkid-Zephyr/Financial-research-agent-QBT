@@ -133,6 +133,11 @@ class ApiTests(unittest.TestCase):
         cf = next(item for item in payload if item["code"] == "CF")
         self.assertEqual(cf["default_contract"], "CF2605")
         self.assertIn("CF2609", cf["contracts"])
+        au = next(item for item in payload if item["code"] == "AU")
+        self.assertIn("AU2604", au["contracts"])
+        sc = next(item for item in payload if item["code"] == "SC")
+        self.assertEqual(sc["exchange"], "INE")
+        self.assertIn("SC2812", sc["contracts"])
 
     def test_trigger_single_run(self):
         called = threading.Event()
@@ -159,12 +164,55 @@ class ApiTests(unittest.TestCase):
             )
             self.assertEqual(response.status_code, 202)
             self.assertEqual(response.json()["requested_symbol"], "CF")
+            self.assertEqual(response.json()["selected_report_render_mode"], "hybrid")
             self.assertTrue(called.wait(2))
             self.assertEqual(received["symbol"], "CF")
             self.assertEqual(received["target_date"], date(2026, 4, 1))
             self.assertEqual(received["research_profile"]["persona"], "hedging")
+            self.assertNotIn("report_render_mode", received["research_profile"])
         finally:
             client.close()
+
+    def test_trigger_single_run_accepts_report_render_mode(self):
+        called = threading.Event()
+        received = {}
+
+        async def fake_runner(symbol, target_date, research_profile=None):
+            received["symbol"] = symbol
+            received["target_date"] = target_date
+            received["research_profile"] = research_profile
+            called.set()
+            return self.sample_state
+
+        client = TestClient(create_app(self.repository))
+        try:
+            client.app.state.run_single = fake_runner
+
+            response = client.post(
+                "/runs",
+                json={
+                    "symbol": "au",
+                    "contract": "AU2610",
+                    "target_date": "2026-04-01",
+                    "report_render_mode": "grounded_llm",
+                    "research_profile": {"persona": "institution"},
+                },
+            )
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(response.json()["selected_contract"], "AU2610")
+            self.assertEqual(response.json()["selected_report_render_mode"], "grounded_llm")
+            self.assertTrue(called.wait(2))
+            self.assertEqual(received["symbol"], "AU2610")
+            self.assertEqual(received["research_profile"]["report_render_mode"], "grounded_llm")
+        finally:
+            client.close()
+
+    def test_trigger_single_run_rejects_unknown_report_render_mode(self):
+        response = self.client.post(
+            "/runs",
+            json={"symbol": "cf", "target_date": "2026-04-01", "report_render_mode": "freehand"},
+        )
+        self.assertEqual(response.status_code, 422)
 
     def test_trigger_single_run_accepts_selected_contract(self):
         called = threading.Event()
@@ -190,6 +238,33 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(response.json()["selected_contract"], "CF2609")
             self.assertTrue(called.wait(2))
             self.assertEqual(received["symbol"], "CF2609")
+        finally:
+            client.close()
+
+    def test_trigger_single_run_accepts_non_default_catalog_contract(self):
+        called = threading.Event()
+        received = {}
+
+        async def fake_runner(symbol, target_date, research_profile=None):
+            received["symbol"] = symbol
+            received["target_date"] = target_date
+            received["research_profile"] = research_profile
+            called.set()
+            return self.sample_state
+
+        client = TestClient(create_app(self.repository))
+        try:
+            client.app.state.run_single = fake_runner
+
+            response = client.post(
+                "/runs",
+                json={"symbol": "AG", "contract": "AG2607", "target_date": "2026-04-01"},
+            )
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(response.json()["requested_symbol"], "AG")
+            self.assertEqual(response.json()["selected_contract"], "AG2607")
+            self.assertTrue(called.wait(2))
+            self.assertEqual(received["symbol"], "AG2607")
         finally:
             client.close()
 
