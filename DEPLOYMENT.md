@@ -273,6 +273,7 @@ Runner 约束：
   - 自定义部署目录；默认 `/opt/apps/research-report-agent`
 - `DEPLOY_ENV_FILE`
   - 多行 `.env` 内容，部署时写入 `shared/.env`
+  - 若不提供该变量，部署脚本会自动使用仓库内 `.env.example` 生成 `.env`（兜底保证 Docker Compose 可启动）
 - `DEPLOY_WITH_DOCKER_COMPOSE`
   - 默认 `true`；若不希望部署阶段执行 `docker compose up -d --build`，设为 `false`
 - `SYSTEMD_SERVICE`
