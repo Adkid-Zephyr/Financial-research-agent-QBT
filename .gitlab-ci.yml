@@ -90,6 +90,6 @@ deploy-main:
     name: production
   script:
     - chmod +x deploy/ci/deploy_main.sh
-    - DEPLOY_USE_SUDO=false deploy/ci/deploy_main.sh
+    - DEPLOY_USE_SUDO=false DEPLOY_PATH=/opt/apps/research-report-agent deploy/ci/deploy_main.sh
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'

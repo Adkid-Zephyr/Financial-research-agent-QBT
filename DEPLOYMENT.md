@@ -245,7 +245,7 @@ client -> nginx -> fastapi/websocket(app) -> postgres
   - 打包代码为 `dist/<project>-<sha>.tar.gz`
   - 生成 `sha256` 校验文件并作为 artifact 保存
 - `deploy-main`（仅 `main`）
-  - 使用 `deploy/ci/deploy_main.sh` 自动部署到 `/opt/...`
+  - 使用 `deploy/ci/deploy_main.sh` 自动部署到 `/opt/apps/...`
 
 Runner 约束：
 
@@ -258,19 +258,19 @@ Runner 约束：
 
 默认部署目录：
 
-- `/opt/research-report-agent`
+- `/opt/apps/research-report-agent`
 - 发布结构：
-  - `/opt/research-report-agent/releases/<commit>`
-  - `/opt/research-report-agent/current`（软链指向当前版本）
-  - `/opt/research-report-agent/shared/.env`（可选）
-  - `/opt/research-report-agent/shared/{outputs,logs,memory}`
+  - `/opt/apps/research-report-agent/releases/<commit>`
+  - `/opt/apps/research-report-agent/current`（软链指向当前版本）
+  - `/opt/apps/research-report-agent/shared/.env`（可选）
+  - `/opt/apps/research-report-agent/shared/{outputs,logs,memory}`
 
 建议在 GitLab CI/CD Variables 配置：
 
 - `DEPLOY_USE_SUDO`
   - `true` 时部署脚本用 `sudo` 执行写入 `/opt`、重启服务等操作
 - `DEPLOY_PATH`
-  - 自定义部署目录；默认 `/opt/research-report-agent`
+  - 自定义部署目录；默认 `/opt/apps/research-report-agent`
 - `DEPLOY_ENV_FILE`
   - 多行 `.env` 内容，部署时写入 `shared/.env`
 - `DEPLOY_WITH_DOCKER_COMPOSE`

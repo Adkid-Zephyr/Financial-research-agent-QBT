@@ -9,7 +9,7 @@ run_as_root() {
   fi
 }
 
-DEPLOY_BASE_DIR="${DEPLOY_BASE_DIR:-/opt}"
+DEPLOY_BASE_DIR="${DEPLOY_BASE_DIR:-/opt/apps}"
 DEPLOY_APP_NAME="${DEPLOY_APP_NAME:-research-report-agent}"
 DEPLOY_PATH="${DEPLOY_PATH:-${DEPLOY_BASE_DIR%/}/${DEPLOY_APP_NAME}}"
 RELEASE_ID="${CI_COMMIT_SHORT_SHA:-$(date +%Y%m%d%H%M%S)}"
