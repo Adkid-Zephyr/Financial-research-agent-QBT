@@ -23,6 +23,7 @@ BatchRunner = Callable[[List[str], date, int], Awaitable[BatchResearchSummary]]
 
 class RunTriggerRequest(BaseModel):
     symbol: str
+    contract: Optional[str] = None
     target_date: date = Field(default_factory=date.today)
     research_profile: Dict[str, Any] = Field(default_factory=dict)
 
@@ -30,6 +31,7 @@ class RunTriggerRequest(BaseModel):
 class RunTriggerAccepted(BaseModel):
     status: str = "accepted"
     requested_symbol: str
+    selected_contract: Optional[str] = None
     target_date: date
 
 
@@ -51,6 +53,14 @@ class BatchTriggerAccepted(BaseModel):
     requested_symbols: List[str]
     target_date: date
     concurrency: int
+
+
+class VarietyOption(BaseModel):
+    code: str
+    name: str
+    exchange: str
+    contracts: List[str]
+    default_contract: Optional[str] = None
 
 
 def _get_single_runner(request: Request) -> SingleRunner:
@@ -90,17 +100,51 @@ def _resolve_requested_symbols(payload: BatchTriggerRequest) -> List[str]:
     return symbols
 
 
+def _resolve_single_symbol(payload: RunTriggerRequest) -> str:
+    requested_symbol = payload.symbol.strip().upper()
+    if not requested_symbol:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Symbol is required.")
+    if not payload.contract:
+        return requested_symbol
+
+    registry = VarietyRegistry()
+    registry.scan()
+    try:
+        variety = registry.get(requested_symbol)
+        return registry.normalize_configured_contract(variety.code, payload.contract)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get("/varieties", response_model=List[VarietyOption])
+def list_varieties() -> List[VarietyOption]:
+    registry = VarietyRegistry()
+    registry.scan()
+    return [
+        VarietyOption(
+            code=item.code.upper(),
+            name=item.name,
+            exchange=item.exchange,
+            contracts=[contract.upper() for contract in item.contracts],
+            default_contract=item.contracts[0].upper() if item.contracts else None,
+        )
+        for item in registry.list_varieties()
+    ]
+
+
 @router.post("/runs", response_model=RunTriggerAccepted, status_code=status.HTTP_202_ACCEPTED)
 async def trigger_single_run(payload: RunTriggerRequest, request: Request) -> RunTriggerAccepted:
+    resolved_symbol = _resolve_single_symbol(payload)
     _spawn_background_task(
         _get_single_runner(request)(
-            payload.symbol.strip().upper(),
+            resolved_symbol,
             payload.target_date,
             payload.research_profile,
         )
     )
     return RunTriggerAccepted(
         requested_symbol=payload.symbol.strip().upper(),
+        selected_contract=resolved_symbol if payload.contract else None,
         target_date=payload.target_date,
     )
 

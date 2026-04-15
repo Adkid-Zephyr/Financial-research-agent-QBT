@@ -186,7 +186,8 @@ label {
   font-size: 14px;
 }
 
-input {
+input,
+select {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--line);
@@ -195,7 +196,8 @@ input {
   color: var(--ink);
 }
 
-input:focus {
+input:focus,
+select:focus {
   outline: 2px solid rgba(14, 107, 92, 0.18);
   border-color: rgba(14, 107, 92, 0.4);
 }

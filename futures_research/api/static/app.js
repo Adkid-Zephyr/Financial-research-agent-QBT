@@ -2,6 +2,7 @@ const state = {
   websocket: null,
   selectedRunIds: new Set(),
   currentRunId: "",
+  varieties: [],
   reportFilters: {
     symbol: "",
     variety_code: "",
@@ -105,6 +106,56 @@ async function refreshHealth() {
   $("#model-status").textContent = `${payload.llm_model} @ ${payload.llm_base_url}`;
   const suffix = payload.process_id ? ` (PID ${payload.process_id})` : "";
   $("#started-at-status").textContent = `${formatTimestamp(payload.started_at)}${suffix}`;
+}
+
+function varietyLabel(item) {
+  return `${item.name} ${item.code}`;
+}
+
+function populateAdminSymbolOptions() {
+  if (!state.varieties.length) {
+    return;
+  }
+  const select = $("#admin-symbol-select");
+  const current = select.value || "CF";
+  select.innerHTML = "";
+  state.varieties.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.code;
+    option.textContent = varietyLabel(item);
+    select.appendChild(option);
+  });
+  select.value = state.varieties.some((item) => item.code === current) ? current : state.varieties[0].code;
+}
+
+function updateAdminContractOptions(preferredContract = "") {
+  const symbol = $("#admin-symbol-select").value;
+  const contractSelect = $("#admin-contract-select");
+  const variety = state.varieties.find((item) => item.code === symbol);
+  contractSelect.innerHTML = "";
+  if (!variety || !variety.contracts.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "默认合约";
+    contractSelect.appendChild(option);
+    contractSelect.disabled = true;
+    return;
+  }
+  variety.contracts.forEach((contract, index) => {
+    const option = document.createElement("option");
+    option.value = contract;
+    option.textContent = index === 0 ? `${contract}（默认）` : contract;
+    contractSelect.appendChild(option);
+  });
+  contractSelect.disabled = false;
+  contractSelect.value = variety.contracts.includes(preferredContract) ? preferredContract : variety.contracts[0];
+}
+
+async function refreshVarieties() {
+  const payload = await requestJson("/varieties");
+  state.varieties = payload;
+  populateAdminSymbolOptions();
+  updateAdminContractOptions();
 }
 
 function setOrigins() {
@@ -381,6 +432,7 @@ function bindEvents() {
   $("#connect-run-events").addEventListener("click", () => connectEvents("run"));
   $("#connect-batch-events").addEventListener("click", () => connectEvents("batch"));
   $("#disconnect-events").addEventListener("click", disconnectEvents);
+  $("#admin-symbol-select").addEventListener("change", () => updateAdminContractOptions());
   $("#single-run-form").addEventListener("submit", async (event) => {
     try {
       await submitSingleRun(event);
@@ -424,6 +476,7 @@ async function bootstrap() {
   setOrigins();
   seedDates();
   bindEvents();
+  await refreshVarieties().catch(() => updateAdminContractOptions());
   try {
     await refreshHealth();
   } catch (error) {

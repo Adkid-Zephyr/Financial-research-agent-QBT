@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import yaml
 
@@ -50,5 +50,19 @@ class VarietyRegistry:
             return variety.contracts[0]
         return symbol_or_code.upper()
 
-    def list_codes(self):
+    def list_codes(self) -> List[str]:
         return sorted(self._varieties.keys())
+
+    def list_varieties(self) -> List[VarietyDefinition]:
+        return [self._varieties[code] for code in self.list_codes()]
+
+    def normalize_configured_contract(self, variety_code: str, contract: str) -> str:
+        variety = self.get(variety_code)
+        normalized_contract = contract.strip().upper()
+        configured = {item.upper(): item.upper() for item in variety.contracts}
+        if normalized_contract not in configured:
+            raise ValueError(
+                "Contract '%s' is not configured for variety '%s'. Available contracts: %s"
+                % (contract, variety.code.upper(), ", ".join(variety.contracts))
+            )
+        return configured[normalized_contract]
