@@ -50,6 +50,11 @@ fi
 
 if run_as_root test -f "${SHARED_DIR}/.env"; then
   run_as_root cp "${SHARED_DIR}/.env" "${RELEASE_DIR}/.env"
+elif run_as_root test -f "${RELEASE_DIR}/.env.example"; then
+  # docker compose app service declares `env_file: .env`, so ensure it exists.
+  run_as_root cp "${RELEASE_DIR}/.env.example" "${RELEASE_DIR}/.env"
+else
+  run_as_root touch "${RELEASE_DIR}/.env"
 fi
 
 if ! python3 -m venv "${RELEASE_DIR}/.venv"; then
