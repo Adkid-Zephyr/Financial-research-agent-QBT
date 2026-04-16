@@ -188,14 +188,10 @@ def _build_deterministic_report(
     raw_data = state["raw_data"]
     metrics = raw_data.get("metrics", {})
     sources = raw_data.get("sources", [])
-    data_gaps = raw_data.get("data_gaps", [])
     workflow = raw_data.get("research_workflow", {})
     primary = _snapshot(raw_data, "primary")
     secondary = _snapshot(raw_data, "secondary")
-    market_context = raw_data.get("market_context", "")
-    analysis_result = state.get("analysis_result", "")
     analysis_brief = raw_data.get("analysis_brief", {})
-    request_context = raw_data.get("request_context", {})
     external_items = _external_market_items(raw_data)
     fundamental_items = _fundamental_items(raw_data)
     can_write_formal_report = workflow.get("can_write_formal_report", False)
@@ -242,13 +238,6 @@ def _build_deterministic_report(
             "{symbol} 当前未拿到与目标日期一致的实时结构化数字，本稿仅输出数据不足说明，避免把旧快照或推测性数字写成今日研报事实。"
         ).format(symbol=state["symbol"])
 
-    info_lines = "\n".join(
-        "1. {gap}".format(gap=gap) for gap in data_gaps[:4]
-    ) or "1. 当前无额外待补充项。"
-    if request_context.get("persona_label"):
-        info_lines += "\n1. 本次研究视角：{persona_label}。".format(
-            persona_label=request_context.get("persona_label")
-        )
     if can_write_formal_report and primary:
         news_line = "1. 主数据合约 {instrument_id} 最新更新时间为 {update_time}，交易日为 {trading_day}。".format(
             instrument_id=primary.get("instrument_id") or metrics.get("主数据合约ID", "暂无"),
@@ -300,13 +289,6 @@ def _build_deterministic_report(
     factor_view_1 = _safe_list_item(key_factor_views, 0, reasons[0] if reasons else view_reason)
     factor_view_2 = _safe_list_item(key_factor_views, 1, _spread_comment(spread_value))
     factor_view_3 = _safe_list_item(key_factor_views, 2, "交易活跃度说明当前盘面并非无量状态。")
-    factor_view_4 = _safe_list_item(
-        key_factor_views,
-        3,
-        "外盘、宏观和部分基本面数据已有结构化补充，但供需平衡等缺口仍需单独披露。"
-        if external_items or fundamental_items
-        else "研究边界需要被明确写出，不能把缺口伪装成结论。",
-    )
     risk_2 = _safe_list_item(
         risk_views,
         1,
@@ -349,24 +331,16 @@ def _build_deterministic_report(
 1. **盘面方向**：{factor_view_1}
 2. **期限结构**：{factor_view_2} 当前近月-远月价差为 {spread}。
 3. **交易活跃度**：{factor_view_3} 当前持仓量 {open_interest}、成交量 {volume}。
-4. **研究边界**：{factor_view_4}
 
 ## 六、风险提示
 1. 若实时快照与目标日期不一致，旧快照不能替代今日事实。
 2. {risk_2}
 3. {risk_3}
 
-## 七、数据说明与待补充项
-{info_lines}
-
 ---
 *数据来源：{sources_text}*  
 *生成时间：{target_date}*  
 *本报告由AI自动生成，仅供参考，不构成投资建议。*
-
-<!-- analysis_trace
-{analysis_result}
--->
 """.strip().format(
         variety=state["variety"],
         symbol=state["symbol"],
@@ -404,15 +378,12 @@ def _build_deterministic_report(
         factor_view_1=factor_view_1,
         factor_view_2=factor_view_2,
         factor_view_3=factor_view_3,
-        factor_view_4=factor_view_4,
         risk_2=risk_2,
         risk_3=risk_3,
         main_factor=main_factor,
         second_factor=second_factor,
         third_factor=third_factor,
-        info_lines=info_lines,
         sources_text="；".join(sources) or "CTP snapshot API",
-        analysis_result=analysis_result or market_context,
     )
 
 

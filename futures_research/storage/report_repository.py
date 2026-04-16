@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 import json
+import re
 from typing import Any, Dict, List, Optional, Protocol
 from uuid import UUID
 
@@ -168,6 +169,7 @@ class SqlAlchemyReportRepository:
 
     def _row_to_summary(self, row: RowMapping) -> ReportSummary:
         review_result = row["review_result"] or {}
+        summary = row["summary"] or self._summary_from_row(row)
         return ReportSummary(
             run_id=row["run_id"],
             symbol=row["symbol"],
@@ -176,7 +178,7 @@ class SqlAlchemyReportRepository:
             target_date=row["target_date"],
             generated_at=row["generated_at"],
             final_score=row["final_score"],
-            summary=row["summary"] or "",
+            summary=summary,
             sentiment=row["sentiment"] or "",
             confidence=row["confidence"] or "",
             review_passed=bool(review_result.get("passed", False)),
@@ -229,6 +231,30 @@ class SqlAlchemyReportRepository:
         draft = row.get("report_draft") or ""
         return len(draft)
 
+    def _summary_from_row(self, row: RowMapping) -> str:
+        report = row.get("final_report") or {}
+        content = report.get("content") if isinstance(report, dict) else None
+        return self._extract_summary(content or row.get("report_draft") or "")
+
+    @staticmethod
+    def _extract_summary(content: str) -> str:
+        cleaned = _clean_report_text(content)
+        for line in cleaned.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("> **核心观点**："):
+                return _compact_summary(stripped.replace("> **核心观点**：", ""))
+            if stripped.startswith("> 核心观点"):
+                return _compact_summary(stripped.replace("> 核心观点", "").lstrip("：:"))
+        for heading in ["## 核心观点", "## 一、结论先行", "## 一、行情回顾"]:
+            section = _section_after_heading(cleaned, heading)
+            if section:
+                return _compact_summary(section)
+        for line in cleaned.splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and not stripped.startswith("---"):
+                return _compact_summary(stripped)
+        return ""
+
     def _remove_artifacts_for_state(self, state: WorkflowState) -> None:
         from futures_research.storage.artifacts import remove_report_artifacts
 
@@ -246,3 +272,67 @@ def build_report_repository(database_url: Optional[str] = None) -> Optional[Repo
     if not resolved_database_url:
         return None
     return SqlAlchemyReportRepository(resolved_database_url)
+
+
+def _clean_report_text(content: str) -> str:
+    cleaned = _strip_internal_report_blocks(content or "")
+    cleaned = re.sub(r"\[(?:F|G)\d+\]", "", cleaned)
+    cleaned = re.sub(r"(?<![A-Za-z0-9])(?:F|G)\d+(?![A-Za-z0-9])", "", cleaned)
+    cleaned = re.sub(r"[ \t]+([，。；：、,.])", r"\1", cleaned)
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    return "\n".join(line.rstrip() for line in cleaned.splitlines()).strip()
+
+
+def _strip_internal_report_blocks(content: str) -> str:
+    without_comments = re.sub(r"<!--.*?-->", "", content or "", flags=re.DOTALL)
+    lines = without_comments.splitlines()
+    visible = []
+    skip_mode = ""
+    for line in lines:
+        stripped = line.strip()
+        if re.match(r"^##\s+七、数据说明与待补充项", stripped):
+            skip_mode = "section"
+            continue
+        if stripped == "写作约束：":
+            skip_mode = "constraint"
+            continue
+        if skip_mode:
+            can_resume = (
+                re.match(r"^#{1,6}\s+", stripped)
+                or stripped == "---"
+                or (skip_mode == "constraint" and not stripped)
+            )
+            if can_resume:
+                skip_mode = ""
+            else:
+                continue
+        if re.match(r"^\d+\.\s+\*\*研究边界\*\*", stripped):
+            continue
+        visible.append(line)
+    return "\n".join(visible)
+
+
+def _compact_summary(text: str) -> str:
+    stripped = _clean_report_text(text)
+    stripped = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", stripped)
+    stripped = re.sub(r"`([^`]+)`", r"\1", stripped)
+    stripped = stripped.replace("**", "").replace("*", "")
+    stripped = stripped.lstrip("> ").strip(" ：:")
+    return re.sub(r"\s+", " ", stripped)[:120]
+
+
+def _section_after_heading(content: str, heading: str) -> str:
+    if heading not in content:
+        return ""
+    section = content.split(heading, 1)[1]
+    lines = []
+    for line in section.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if lines:
+                break
+            continue
+        if stripped.startswith("## "):
+            break
+        lines.append(stripped.lstrip("> ").strip())
+    return " ".join(lines)
