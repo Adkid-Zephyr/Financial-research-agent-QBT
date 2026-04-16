@@ -70,6 +70,10 @@ def create_app(repository: Optional[ReportRepository] = None, event_bus: Optiona
     def frontend():
         return FileResponse(STATIC_DIR / "index.html")
 
+    @app.get("/library", include_in_schema=False)
+    def library_frontend():
+        return FileResponse(STATIC_DIR / "library.html")
+
     @app.get("/admin", include_in_schema=False)
     def admin_frontend():
         return FileResponse(STATIC_DIR / "admin.html")

@@ -4,9 +4,30 @@ const consumerState = {
   activeReport: null,
   library: [],
   varieties: [],
+  pickerKind: "",
 };
 
 const $ = (selector) => document.querySelector(selector);
+
+const STEP_ORDER = ["aggregate", "analyze", "write", "review"];
+const STEP_COPY = {
+  aggregate: {
+    title: "正在整理行情数据",
+    detail: "正在核对合约、行情和可用来源。",
+  },
+  analyze: {
+    title: "正在形成研究观点",
+    detail: "正在把价格、基差、外盘和基本面线索合成判断。",
+  },
+  write: {
+    title: "正在撰写研报",
+    detail: "正在把结论写成便于阅读的研究报告。",
+  },
+  review: {
+    title: "正在检查风险",
+    detail: "正在检查证据、风险提示和表达边界。",
+  },
+};
 
 function todayText() {
   return new Date().toISOString().slice(0, 10);
@@ -41,66 +62,39 @@ function escapeHtml(value) {
 }
 
 function renderMarkdown(markdown) {
-  const lines = String(markdown || "").split("\n");
-  const html = [];
-  let inList = false;
+  return window.ConsumerMarkdownRenderer.render(markdown);
+}
 
-  function closeList() {
-    if (inList) {
-      html.push("</ul>");
-      inList = false;
-    }
+function setSubmitDisabled(disabled) {
+  const button = $("#start-research");
+  if (!button) {
+    return;
   }
+  button.disabled = disabled;
+  button.textContent = disabled ? "研究中..." : "开始研究";
+}
 
-  lines.forEach((rawLine) => {
-    const line = rawLine.trimEnd();
-    if (!line.trim()) {
-      closeList();
-      return;
-    }
-    if (line.startsWith("<!--")) {
-      closeList();
-      return;
-    }
-    if (line.startsWith("# ")) {
-      closeList();
-      html.push(`<h1>${escapeHtml(line.slice(2))}</h1>`);
-      return;
-    }
-    if (line.startsWith("## ")) {
-      closeList();
-      html.push(`<h2>${escapeHtml(line.slice(3))}</h2>`);
-      return;
-    }
-    if (line.startsWith("### ")) {
-      closeList();
-      html.push(`<h3>${escapeHtml(line.slice(4))}</h3>`);
-      return;
-    }
-    if (line.startsWith(">")) {
-      closeList();
-      html.push(`<blockquote>${escapeHtml(line.replace(/^>\s?/, ""))}</blockquote>`);
-      return;
-    }
-    if (/^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line)) {
-      if (!inList) {
-        html.push("<ul>");
-        inList = true;
-      }
-      html.push(`<li>${escapeHtml(line.replace(/^[-*]\s+/, "").replace(/^\d+\.\s+/, ""))}</li>`);
-      return;
-    }
-    closeList();
-    html.push(`<p>${escapeHtml(line)}</p>`);
-  });
-  closeList();
-  return html.join("");
+function setResearchStatus(kind, title, detail) {
+  const status = $("#research-status");
+  const spinner = $("#status-spinner");
+  status.classList.remove("idle", "running", "done", "failed");
+  status.classList.add(kind);
+  $("#run-status").textContent = title;
+  $("#status-detail").textContent = detail || "";
+  spinner.classList.toggle("hidden", kind !== "running");
 }
 
 function setStep(step, state) {
+  const index = STEP_ORDER.indexOf(step);
+  document.querySelectorAll("#progress-steps span").forEach((item) => {
+    const itemIndex = STEP_ORDER.indexOf(item.dataset.step);
+    item.classList.remove("active", "done");
+    if (state === "active" && itemIndex >= 0 && itemIndex < index) {
+      item.classList.add("done");
+    }
+  });
   const item = document.querySelector(`[data-step="${step}"]`);
   if (item) {
-    item.classList.remove("active", "done");
     item.classList.add(state);
   }
 }
@@ -111,19 +105,39 @@ function resetSteps() {
   });
 }
 
-function appendEvent(payload) {
-  const feed = $("#event-feed");
-  const item = document.createElement("div");
-  item.className = "event-item";
-  const parts = [payload.event_type || "event"];
-  if (payload.step) {
-    parts.push(payload.step);
+function completeSteps() {
+  document.querySelectorAll("#progress-steps span").forEach((item) => {
+    item.classList.remove("active");
+    item.classList.add("done");
+  });
+}
+
+function handleRuntimeEvent(payload) {
+  if (payload.event_type === "run_started") {
+    consumerState.activeRunId = payload.run_id || consumerState.activeRunId;
+    setResearchStatus("running", "研究开始了", "正在为你准备数据和研究框架。");
+    setSubmitDisabled(true);
+    return;
   }
-  if (payload.variety_code) {
-    parts.push(payload.variety_code);
+  if (payload.event_type === "step_started" && payload.step) {
+    const copy = STEP_COPY[payload.step] || STEP_COPY.aggregate;
+    setStep(payload.step, "active");
+    setResearchStatus("running", copy.title, copy.detail);
+    return;
   }
-  item.textContent = parts.join(" / ");
-  feed.prepend(item);
+  if (payload.event_type === "review_round_completed") {
+    setStep("review", "done");
+    if (payload.payload?.passed) {
+      setResearchStatus("running", "质量检查通过", "正在整理最终研报。");
+    } else {
+      setResearchStatus("running", "正在补充修订", "发现需要补足的地方，正在自动完善。");
+    }
+    return;
+  }
+  if (payload.event_type === "run_failed") {
+    setResearchStatus("failed", "研究任务失败", "请稍后重试，后台运行日志里可以查看详细原因。");
+    setSubmitDisabled(false);
+  }
 }
 
 function connectEvents() {
@@ -141,40 +155,20 @@ function connectEvents() {
     if (payload.event_type === "subscribed") {
       return;
     }
-    appendEvent(payload);
-    if (payload.event_type === "step_started" && payload.step) {
-      setStep(payload.step, "active");
-    }
-    if (payload.event_type === "step_completed" && payload.step) {
-      setStep(payload.step, "done");
-    }
-    if (payload.event_type === "run_started") {
-      consumerState.activeRunId = payload.run_id || consumerState.activeRunId;
-      $("#run-status").textContent = "研究任务已开始";
-    }
+    handleRuntimeEvent(payload);
     if (payload.event_type === "run_completed") {
       consumerState.activeRunId = payload.run_id || consumerState.activeRunId;
-      $("#run-status").textContent = "报告生成完成";
-      document.querySelectorAll("#progress-steps span").forEach((item) => item.classList.add("done"));
+      completeSteps();
+      setResearchStatus("done", "研报生成完成", "可以滚动阅读正文。");
+      setSubmitDisabled(false);
       if (consumerState.activeRunId) {
         await loadReport(consumerState.activeRunId);
-        await refreshLibrary();
       }
-    }
-    if (payload.event_type === "run_failed") {
-      $("#run-status").textContent = "研究任务失败";
     }
   };
   consumerState.websocket.onclose = () => {
     consumerState.websocket = null;
   };
-}
-
-async function refreshHealth() {
-  const payload = await requestJson("/healthz");
-  $("#health-status").textContent = payload.status === "ok" ? "在线" : "异常";
-  $("#storage-status").textContent = payload.storage_enabled ? "已开启" : "未配置";
-  $("#search-boundary").textContent = payload.web_search_enabled ? "web search 已启用" : "web search 未启用";
 }
 
 function varietyLabel(item) {
@@ -231,16 +225,22 @@ function closePickerModal() {
   $("#picker-modal").classList.add("hidden");
 }
 
-function openPickerModal(kind) {
-  const modal = $("#picker-modal");
-  const title = $("#picker-modal-title");
+function renderPickerOptions() {
   const options = $("#picker-options");
+  const search = $("#picker-search").value.trim().toLowerCase();
   options.innerHTML = "";
 
-  if (kind === "symbol") {
-    title.textContent = "选择品种";
+  if (consumerState.pickerKind === "symbol") {
     const selectedCode = $("#symbol-select").value;
-    consumerState.varieties.forEach((item) => {
+    const matches = consumerState.varieties.filter((item) => {
+      const haystack = `${item.name} ${item.code} ${item.exchange}`.toLowerCase();
+      return !search || haystack.includes(search);
+    });
+    if (!matches.length) {
+      options.innerHTML = '<p class="picker-empty">没有找到匹配品种。</p>';
+      return;
+    }
+    matches.forEach((item) => {
       options.appendChild(
         makePickerButton(
           item.name,
@@ -255,24 +255,48 @@ function openPickerModal(kind) {
         )
       );
     });
+    return;
+  }
+
+  const variety = selectedVariety();
+  if (!variety) {
+    options.innerHTML = '<p class="picker-empty">暂无可选合约。</p>';
+    return;
+  }
+  const selectedContract = $("#contract-select").value;
+  variety.contracts.forEach((contract, index) => {
+    options.appendChild(
+      makePickerButton(
+        contract,
+        contract === selectedContract,
+        () => {
+          updateContractOptions(contract);
+          closePickerModal();
+        },
+        index === 0 ? "主力合约" : "可选合约"
+      )
+    );
+  });
+}
+
+function openPickerModal(kind) {
+  const modal = $("#picker-modal");
+  const title = $("#picker-modal-title");
+  const searchWrap = $("#picker-search-wrap");
+  const searchInput = $("#picker-search");
+  consumerState.pickerKind = kind;
+  searchInput.value = "";
+
+  if (kind === "symbol") {
+    title.textContent = "选择品种";
+    searchWrap.classList.remove("hidden");
+    setTimeout(() => searchInput.focus(), 0);
   } else {
     const variety = selectedVariety();
-    title.textContent = `选择合约 - ${varietyLabel(variety)}`;
-    const selectedContract = $("#contract-select").value;
-    variety.contracts.forEach((contract, index) => {
-      options.appendChild(
-        makePickerButton(
-          contract,
-          contract === selectedContract,
-          () => {
-            updateContractOptions(contract);
-            closePickerModal();
-          },
-          index === 0 ? "主力合约" : "可选合约"
-        )
-      );
-    });
+    title.textContent = `选择合约 - ${variety ? varietyLabel(variety) : ""}`;
+    searchWrap.classList.add("hidden");
   }
+  renderPickerOptions();
   modal.classList.remove("hidden");
 }
 
@@ -291,7 +315,7 @@ function buildRunPayload(form) {
     target_date: String(data.get("target_date") || todayText()),
     report_render_mode: String(data.get("report_render_mode") || "hybrid"),
     research_profile: {
-      persona: String(data.get("persona") || "institution"),
+      persona: "institution",
       user_focus: String(data.get("prompt") || "").trim(),
     },
   };
@@ -302,39 +326,39 @@ async function submitResearch(event) {
   connectEvents();
   resetSteps();
   $("#answer-empty").classList.remove("hidden");
+  $("#report-shell").classList.add("hidden");
   $("#report-view").classList.add("hidden");
-  $("#follow-up-answer").textContent = "";
-  $("#event-feed").innerHTML = "";
-  $("#run-status").textContent = "已提交，等待运行事件";
+  $("#report-view").innerHTML = "";
+  setResearchStatus("running", "正在提交研究任务", "请稍等，系统马上开始处理。");
+  setSubmitDisabled(true);
   const payload = buildRunPayload(event.currentTarget);
-  await requestJson("/runs", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  setTimeout(refreshLibrary, 5000);
+  try {
+    await requestJson("/runs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    setResearchStatus("running", "任务已提交", "后台已经开始研究，页面会自动更新进度。");
+  } catch (error) {
+    setResearchStatus("failed", "提交失败", String(error.message || error));
+    setSubmitDisabled(false);
+  }
 }
 
-function renderSources(payload) {
-  const report = payload.final_report || {};
-  const rawData = payload.raw_data || {};
-  const sources = report.data_sources || rawData.sources || [];
-  const gaps = rawData.data_gaps || [];
-  const externalCount = (rawData.external_market_facts || []).length;
-  const fundamentalCount = (rawData.fundamental_facts || []).length;
-  const sourceList = $("#source-list");
-  sourceList.innerHTML = "";
-
-  [
-    ["数据来源", sources.length ? sources.join("；") : "暂无可核验来源"],
-    ["外盘/宏观", externalCount ? `${externalCount} 条结构化事实` : "暂无可引用结构化事实"],
-    ["基本面", fundamentalCount ? `${fundamentalCount} 条结构化事实` : "暂无可引用结构化事实"],
-    ["数据缺口", gaps.length ? gaps.slice(0, 4).join("；") : "当前报告未登记额外缺口"],
-  ].forEach(([label, value]) => {
-    const node = document.createElement("div");
-    node.className = "source-pill";
-    node.innerHTML = `<strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span>`;
-    sourceList.appendChild(node);
-  });
+async function resolveReportContent(report, fallback) {
+  if (report.content) {
+    return report.content;
+  }
+  if (report.markdown_url) {
+    try {
+      const response = await fetch(report.markdown_url, { cache: "no-store" });
+      if (response.ok) {
+        return await response.text();
+      }
+    } catch (error) {
+      return fallback || "";
+    }
+  }
+  return fallback || "";
 }
 
 async function loadReport(runId) {
@@ -342,11 +366,11 @@ async function loadReport(runId) {
   consumerState.activeRunId = runId;
   consumerState.activeReport = payload;
   const report = payload.final_report || {};
-  const content = report.content || payload.report_draft || "";
+  const content = await resolveReportContent(report, payload.report_draft || "");
   $("#answer-empty").classList.add("hidden");
+  $("#report-shell").classList.remove("hidden");
   $("#report-view").classList.remove("hidden");
   $("#report-view").innerHTML = renderMarkdown(content);
-  renderSources(payload);
 
   const md = $("#download-md");
   const pdf = $("#download-pdf");
@@ -362,55 +386,10 @@ async function loadReport(runId) {
   } else {
     pdf.classList.add("hidden");
   }
+
+  setResearchStatus("done", "研报已打开", "可以滚动阅读正文。");
+  setSubmitDisabled(false);
   return payload;
-}
-
-async function askFollowUp() {
-  const question = $("#follow-up-input").value.trim();
-  if (!question) {
-    $("#follow-up-answer").textContent = "请输入一个问题。";
-    return;
-  }
-  if (!consumerState.activeRunId) {
-    $("#follow-up-answer").textContent = "请先生成或打开一份报告。";
-    return;
-  }
-  const payload = await requestJson(`/reports/${consumerState.activeRunId}/ask`, {
-    method: "POST",
-    body: JSON.stringify({ question, persona: $("#persona-select").value }),
-  });
-  $("#follow-up-answer").textContent = payload.answer;
-}
-
-function renderLibrary(items) {
-  const library = $("#report-library");
-  library.innerHTML = "";
-  if (!items.length) {
-    library.innerHTML = '<p class="empty-state">暂无历史报告。</p>';
-    return;
-  }
-  items.slice(0, 9).forEach((item) => {
-    const card = document.createElement("article");
-    card.className = "report-card";
-    card.innerHTML = `
-      <h3>${escapeHtml(item.variety)} ${escapeHtml(item.symbol)}</h3>
-      <p class="report-meta">${escapeHtml(item.target_date)} / ${escapeHtml(item.sentiment || "-")} / 评分 ${escapeHtml(item.final_score ?? "-")}</p>
-      <p class="report-meta">${escapeHtml(item.summary || "暂无摘要")}</p>
-      <button class="ghost" type="button">打开报告</button>
-    `;
-    card.querySelector("button").addEventListener("click", () => loadReport(item.run_id));
-    library.appendChild(card);
-  });
-}
-
-async function refreshLibrary() {
-  try {
-    const payload = await requestJson("/reports?limit=9");
-    consumerState.library = payload;
-    renderLibrary(payload);
-  } catch (error) {
-    $("#report-library").innerHTML = '<p class="empty-state">报告库暂不可用。</p>';
-  }
 }
 
 function bindConsumerEvents() {
@@ -419,37 +398,14 @@ function bindConsumerEvents() {
   $("#symbol-trigger").addEventListener("click", () => openPickerModal("symbol"));
   $("#contract-trigger").addEventListener("click", () => openPickerModal("contract"));
   $("#picker-close").addEventListener("click", closePickerModal);
+  $("#picker-search").addEventListener("input", renderPickerOptions);
   $("#picker-modal").addEventListener("click", (event) => {
     if (event.target.id === "picker-modal") {
       closePickerModal();
     }
-  });
-  $("#refresh-consumer-health").addEventListener("click", async () => {
-    try {
-      await refreshHealth();
-    } catch (error) {
-      $("#health-status").textContent = "检查失败";
-    }
-  });
-  $("#refresh-library").addEventListener("click", refreshLibrary);
-  $("#ask-follow-up").addEventListener("click", async () => {
-    try {
-      await askFollowUp();
-    } catch (error) {
-      $("#follow-up-answer").textContent = String(error);
-    }
-  });
-  document.querySelectorAll("[data-prompt]").forEach((button) => {
-    button.addEventListener("click", () => {
-      $("#research-prompt").value = button.dataset.prompt || "";
-    });
   });
 }
 
 bindConsumerEvents();
 connectEvents();
 refreshVarieties().catch(() => updateContractOptions());
-refreshHealth().catch(() => {
-  $("#health-status").textContent = "检查失败";
-});
-refreshLibrary();

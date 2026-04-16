@@ -13,40 +13,30 @@
           <span class="brand-mark">FR</span>
           <span>
             <strong>期货投研 Agent</strong>
-            <small>结构化数据驱动的商品期货研究</small>
+            <small>商品期货研究助手</small>
           </span>
         </a>
         <nav class="topnav" aria-label="主导航">
-          <a href="#library">报告库</a>
-          <a href="/admin">工作台</a>
+          <a href="/library">报告库</a>
           <a href="/docs" target="_blank" rel="noreferrer">API 文档</a>
+          <a href="/admin#events-log" target="_blank" rel="noreferrer">后台运行日志</a>
         </nav>
       </header>
 
       <main>
         <section class="research-stage" aria-labelledby="research-title">
-          <div class="research-copy">
-            <p class="eyebrow">Research Search</p>
-            <h1 id="research-title">问一句，得到一份有数据边界的期货日报。</h1>
-            <p class="intro">
-              选择品种和研究视角，输入你关心的问题。系统会按 CTP 快照、Yahoo Finance 与 AkShare 的可核验数据生成报告；缺失的数据会直接标成缺口。
-            </p>
-          </div>
-
           <form id="consumer-run-form" class="search-panel">
-            <label class="prompt-label" for="research-prompt">你想研究什么？</label>
+            <div class="chat-heading">
+              <p class="eyebrow">期货投研助手</p>
+              <h1 id="research-title">你想研究什么？</h1>
+            </div>
             <textarea
               id="research-prompt"
               name="prompt"
+              aria-labelledby="research-title"
               rows="5"
               placeholder="例如：帮我看一下沪铜今天是偏多还是观望，重点关注外盘铜、美元指数、现货基差和数据缺口。"
             ></textarea>
-
-            <div class="quick-prompts" aria-label="快捷问题">
-              <button type="button" data-prompt="帮我判断这个品种今天更适合偏多、偏空还是观望，并说明证据和数据缺口。">方向判断</button>
-              <button type="button" data-prompt="重点看现货基差、外盘联动和宏观变量，帮我整理一份简洁日报。">基差与外盘</button>
-              <button type="button" data-prompt="从产业套保视角看当前价格风险，提醒哪些数据还不能确认。">套保视角</button>
-            </div>
 
             <div class="field-grid">
               <label>
@@ -66,126 +56,73 @@
               <label>
                 书写模式
                 <select id="report-render-mode" name="report_render_mode">
-                  <option value="hybrid">hybrid</option>
-                  <option value="llm">llm</option>
-                  <option value="grounded_llm">grounded_llm</option>
-                </select>
-              </label>
-              <label>
-                研究视角
-                <select id="persona-select" name="persona">
-                  <option value="institution">机构研究</option>
-                  <option value="short_term">散户短线</option>
-                  <option value="hedging">产业套保</option>
-                  <option value="large_trader">大户交易</option>
-                  <option value="event">事件驱动</option>
+                  <option value="hybrid">经典模式</option>
+                  <option value="llm">模型推理</option>
+                  <option value="grounded_llm">增强推理</option>
                 </select>
               </label>
             </div>
 
             <div class="form-actions">
-              <button class="primary" type="submit">开始研究</button>
-              <button class="ghost" id="refresh-consumer-health" type="button">检查数据服务</button>
+              <button id="start-research" class="primary" type="submit">开始研究</button>
             </div>
           </form>
+
           <div id="picker-modal" class="picker-modal hidden" role="dialog" aria-modal="true" aria-labelledby="picker-modal-title">
             <div class="picker-dialog">
               <div class="picker-head">
                 <h3 id="picker-modal-title">选择</h3>
                 <button id="picker-close" class="ghost" type="button">关闭</button>
               </div>
+              <div id="picker-search-wrap" class="picker-search hidden">
+                <label for="picker-search">搜索品种</label>
+                <input id="picker-search" type="search" placeholder="输入品种名称、代码或交易所" autocomplete="off" />
+              </div>
               <div id="picker-options" class="picker-table" aria-label="可选列表"></div>
             </div>
           </div>
-        </section>
-
-        <section class="status-grid" aria-label="服务状态">
-          <article>
-            <span>服务</span>
-            <strong id="health-status">未检查</strong>
-          </article>
-          <article>
-            <span>存储</span>
-            <strong id="storage-status">未知</strong>
-          </article>
-          <article>
-            <span>检索边界</span>
-            <strong id="search-boundary">web search 未启用</strong>
-          </article>
-          <article>
-            <span>当前任务</span>
-            <strong id="run-status">等待发起</strong>
-          </article>
         </section>
 
         <section class="workspace">
           <article class="answer-panel">
             <div class="section-head">
               <div>
-                <p class="eyebrow">Live Research</p>
-                <h2>研究结果</h2>
+                <p class="eyebrow">研究结果</p>
+                <h2>研报</h2>
               </div>
               <div class="download-actions">
                 <a id="download-md" class="chip-link hidden" target="_blank" rel="noreferrer">Markdown</a>
                 <a id="download-pdf" class="chip-link hidden" target="_blank" rel="noreferrer">PDF</a>
               </div>
             </div>
-            <div id="progress-steps" class="progress-steps">
-              <span data-step="aggregate">数据聚合</span>
-              <span data-step="analyze">观点分析</span>
-              <span data-step="write">报告写作</span>
-              <span data-step="review">质量审核</span>
-            </div>
-            <div id="answer-empty" class="empty-state">
-              报告生成后，会在这里展示核心观点、数据来源、风险边界和正文预览。
-            </div>
-            <article id="report-view" class="report-view hidden"></article>
 
-            <div class="ask-box">
-              <label for="follow-up-input">围绕这份报告继续问</label>
-              <div class="ask-row">
-                <input id="follow-up-input" placeholder="例如：这个判断最大的风险是什么？" />
-                <button id="ask-follow-up" class="secondary" type="button">追问</button>
+            <div id="research-status" class="research-status idle" aria-live="polite">
+              <span id="status-spinner" class="status-spinner hidden" aria-hidden="true"></span>
+              <div>
+                <strong id="run-status">还没有开始研究</strong>
+                <span id="status-detail">输入问题后点击开始研究。</span>
               </div>
-              <div id="follow-up-answer" class="follow-up-answer"></div>
+            </div>
+
+            <div id="progress-steps" class="progress-steps">
+              <span data-step="aggregate">整理数据</span>
+              <span data-step="analyze">形成观点</span>
+              <span data-step="write">撰写研报</span>
+              <span data-step="review">检查风险</span>
+            </div>
+
+            <div id="answer-empty" class="empty-state">
+              研报生成后会出现在这里。正文支持标题、列表、表格和代码块渲染，并在框内滚动阅读。
+            </div>
+            <div id="report-shell" class="report-shell hidden">
+              <article id="report-view" class="report-view hidden"></article>
             </div>
           </article>
-
-          <aside class="source-panel">
-            <div class="section-head">
-              <div>
-                <p class="eyebrow">Evidence</p>
-                <h2>数据与边界</h2>
-              </div>
-            </div>
-            <img
-              src="https://images.unsplash.com/photo-1642790106117-e829e14a795f?auto=format&fit=crop&w=900&q=80"
-              alt="交易终端屏幕"
-              class="market-image"
-            />
-            <div id="source-list" class="source-list">
-              <p>尚未生成报告。</p>
-            </div>
-            <div class="event-box">
-              <h3>运行过程</h3>
-              <div id="event-feed" class="event-feed"></div>
-            </div>
-          </aside>
-        </section>
-
-        <section class="library-section" id="library">
-          <div class="section-head">
-            <div>
-              <p class="eyebrow">Report Library</p>
-              <h2>最近报告</h2>
-            </div>
-            <button id="refresh-library" class="ghost" type="button">刷新</button>
-          </div>
-          <div id="report-library" class="report-library"></div>
         </section>
       </main>
     </div>
 
+    <script src="/static/markdown-renderer.js"></script>
     <script src="/static/consumer.js"></script>
   </body>
 </html>
