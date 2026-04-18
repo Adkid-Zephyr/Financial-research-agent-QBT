@@ -1,0 +1,252 @@
+generated_at: "2026-04-15"
+source: "CTP snapshot API /api/upgrade/market/search"
+source_count: 440
+varieties:
+  - code: A
+    name: 豆一
+    exchange: DCE
+    contracts: [A2607, A2605, A2609, A2611]
+  - code: AD
+    name: AD
+    exchange: SHFE
+    contracts: [AD2606, AD2604, AD2605, AD2607, AD2608, AD2609, AD2610, AD2611, AD2612]
+  - code: AG
+    name: 沪银
+    exchange: SHFE
+    contracts: [AG2606, AG2604, AG2605, AG2607, AG2608, AG2609, AG2610, AG2611, AG2612]
+  - code: AL
+    name: 沪铝
+    exchange: SHFE
+    contracts: [AL2606, AL2604, AL2605, AL2607, AL2608, AL2609, AL2610, AL2611, AL2612]
+  - code: AO
+    name: 氧化铝
+    exchange: SHFE
+    contracts: [AO2605, AO2604, AO2606, AO2607, AO2608, AO2609, AO2610, AO2611, AO2612]
+  - code: AU
+    name: 沪金
+    exchange: SHFE
+    contracts: [AU2606, AU2604, AU2608, AU2610, AU2612]
+  - code: B
+    name: 豆二
+    exchange: DCE
+    contracts: [B2605, B2604, B2606, B2607, B2608, B2609, B2610, B2611, B2612]
+  - code: BB
+    name: 胶合板
+    exchange: DCE
+    contracts: [BB2609, BB2605, BB2607, BB2611]
+  - code: BC
+    name: 铜
+    exchange: INE
+    contracts: [BC2605, BC2604, BC2606, BC2607, BC2608, BC2609, BC2610, BC2611, BC2612]
+  - code: BR
+    name: 丁二烯胶
+    exchange: SHFE
+    contracts: [BR2606, BR2604, BR2605, BR2607, BR2608, BR2609, BR2610, BR2611, BR2612]
+  - code: BU
+    name: 石油沥青
+    exchange: SHFE
+    contracts: [BU2606, BU2604, BU2605, BU2607, BU2608, BU2609, BU2610, BU2611, BU2612, BU2703, BU2706, BU2709, BU2712]
+  - code: BZ
+    name: BZ
+    exchange: DCE
+    contracts: [BZ2605, BZ2604, BZ2606, BZ2607, BZ2608, BZ2609, BZ2610, BZ2611]
+  - code: C
+    name: 玉米
+    exchange: DCE
+    contracts: [C2605, C2607, C2609, C2611]
+  - code: CS
+    name: 玉米淀粉
+    exchange: DCE
+    contracts: [CS2605, CS2607, CS2609, CS2611]
+  - code: CU
+    name: 沪铜
+    exchange: SHFE
+    contracts: [CU2605, CU2604, CU2606, CU2607, CU2608, CU2609, CU2610, CU2611, CU2612]
+  - code: EB
+    name: 苯乙烯
+    exchange: DCE
+    contracts: [EB2605, EB2604, EB2606, EB2607, EB2608, EB2609, EB2610, EB2611]
+  - code: EC
+    name: 乙二醇
+    exchange: INE
+    contracts: [EC2606, EC2604, EC2608, EC2610]
+  - code: EG
+    name: 乙二醇
+    exchange: DCE
+    contracts: [EG2605, EG2604, EG2606, EG2607, EG2608, EG2609, EG2610, EG2611]
+  - code: FB
+    name: 纤维板
+    exchange: DCE
+    contracts: [FB2606, FB2604, FB2605, FB2607, FB2608, FB2609, FB2610, FB2611, FB2612]
+  - code: FU
+    name: 燃油
+    exchange: SHFE
+    contracts: [FU2605, FU2606, FU2607, FU2608, FU2609, FU2610, FU2611, FU2612]
+  - code: HC
+    name: 热轧卷板
+    exchange: SHFE
+    contracts: [HC2610, HC2604, HC2605, HC2606, HC2607, HC2608, HC2609, HC2611, HC2612]
+  - code: I
+    name: 铁矿
+    exchange: DCE
+    contracts: [I2609, I2604, I2605, I2606, I2607, I2608, I2610, I2611, I2612]
+  - code: IC
+    name: 中证股指
+    exchange: CFFEX
+    contracts: [IC2606]
+  - code: IF
+    name: 沪深股指
+    exchange: CFFEX
+    contracts: [IF2606]
+  - code: IH
+    name: 上证股指
+    exchange: CFFEX
+    contracts: [IH2606]
+  - code: IM
+    name: 中证股指
+    exchange: CFFEX
+    contracts: [IM2606]
+  - code: J
+    name: 焦炭
+    exchange: DCE
+    contracts: [J2605, J2604, J2606, J2607, J2608, J2609, J2610, J2611, J2612]
+  - code: JD
+    name: 鸡蛋
+    exchange: DCE
+    contracts: [JD2606, JD2604, JD2605, JD2607, JD2608, JD2609, JD2610, JD2611]
+  - code: JM
+    name: 焦煤
+    exchange: DCE
+    contracts: [JM2605, JM2604, JM2606, JM2607, JM2608, JM2609, JM2610, JM2611, JM2612]
+  - code: L
+    name: 聚乙烯
+    exchange: DCE
+    contracts: [L2609, L2604, L2605, L2606, L2607, L2608, L2610, L2611, L2612]
+  - code: LC
+    name: 碳酸锂
+    exchange: GFEX
+    contracts: [LC2604, LC2605, LC2606, LC2607, LC2608, LC2609, LC2610, LC2611, LC2612]
+  - code: LG
+    name: LG
+    exchange: DCE
+    contracts: [LG2605, LG2607, LG2609, LG2611]
+  - code: LH
+    name: 生猪
+    exchange: DCE
+    contracts: [LH2605, LH2607, LH2609, LH2611]
+  - code: LU
+    name: 低硫燃油
+    exchange: INE
+    contracts: [LU2606, LU2605, LU2607, LU2608, LU2609, LU2610, LU2611, LU2612]
+  - code: M
+    name: 豆粕
+    exchange: DCE
+    contracts: [M2609, M2605, M2607, M2608, M2611, M2612]
+  - code: NI
+    name: 沪镍
+    exchange: SHFE
+    contracts: [NI2605, NI2604, NI2606, NI2607, NI2608, NI2609, NI2610, NI2611, NI2612]
+  - code: NR
+    name: 20号胶
+    exchange: INE
+    contracts: [NR2606, NR2604, NR2605, NR2607, NR2608, NR2609, NR2610, NR2611, NR2612]
+  - code: OP
+    name: OP
+    exchange: SHFE
+    contracts: [OP2606, OP2604, OP2605, OP2607, OP2608, OP2609, OP2610, OP2611, OP2612]
+  - code: P
+    name: 棕榈油
+    exchange: DCE
+    contracts: [P2609, P2604, P2605, P2606, P2607, P2608, P2610, P2611, P2612]
+  - code: PB
+    name: 沪铅
+    exchange: SHFE
+    contracts: [PB2605, PB2604, PB2606, PB2607, PB2608, PB2609, PB2610, PB2611, PB2612]
+  - code: PD
+    name: PD
+    exchange: GFEX
+    contracts: [PD2606, PD2608, PD2610, PD2612]
+  - code: PG
+    name: 液化石油气
+    exchange: DCE
+    contracts: [PG2605, PG2604, PG2606, PG2607, PG2608, PG2609, PG2610, PG2611]
+  - code: PL
+    name: PL
+    exchange: CZCE
+    contracts: [PL607, PL605, PL606]
+  - code: PP
+    name: 聚丙烯
+    exchange: DCE
+    contracts: [PP2605, PP2604, PP2606, PP2607, PP2608, PP2609, PP2610, PP2611, PP2612]
+  - code: PS
+    name: PS
+    exchange: GFEX
+    contracts: [PS2604, PS2605, PS2606, PS2607, PS2608, PS2609, PS2610, PS2611, PS2612]
+  - code: PT
+    name: PT
+    exchange: GFEX
+    contracts: [PT2606, PT2608, PT2610, PT2612]
+  - code: RB
+    name: 螺纹钢
+    exchange: SHFE
+    contracts: [RB2610, RB2604, RB2605, RB2606, RB2607, RB2608, RB2609, RB2611, RB2612]
+  - code: RR
+    name: 粳米
+    exchange: DCE
+    contracts: [RR2606, RR2604, RR2605, RR2607, RR2608, RR2609, RR2610, RR2611, RR2612]
+  - code: RU
+    name: 橡胶
+    exchange: SHFE
+    contracts: [RU2609, RU2604, RU2605, RU2606, RU2607, RU2608, RU2610, RU2611]
+  - code: SC
+    name: 原油
+    exchange: INE
+    contracts: [SC2605, SC2606, SC2607, SC2608, SC2609, SC2610, SC2611, SC2612, SC2703, SC2706, SC2709, SC2712, SC2803, SC2806, SC2809, SC2812]
+  - code: SI
+    name: 工业硅
+    exchange: GFEX
+    contracts: [SI2604, SI2605, SI2606, SI2607, SI2608, SI2609, SI2610, SI2611, SI2612]
+  - code: SN
+    name: 沪锡
+    exchange: SHFE
+    contracts: [SN2605, SN2604, SN2606, SN2607, SN2608, SN2609, SN2610, SN2611, SN2612]
+  - code: SP
+    name: 纸浆
+    exchange: SHFE
+    contracts: [SP2607, SP2604, SP2605, SP2606, SP2608, SP2609, SP2610, SP2611, SP2612]
+  - code: SS
+    name: 不锈钢
+    exchange: SHFE
+    contracts: [SS2605, SS2604, SS2606, SS2607, SS2608, SS2609, SS2610, SS2611, SS2612]
+  - code: T
+    name: 十债
+    exchange: CFFEX
+    contracts: [T2606, T2609]
+  - code: TF
+    name: 五债
+    exchange: CFFEX
+    contracts: [TF2606, TF2609]
+  - code: TL
+    name: 三十债
+    exchange: CFFEX
+    contracts: [TL2606, TL2609]
+  - code: TS
+    name: 二债
+    exchange: CFFEX
+    contracts: [TS2606, TS2609]
+  - code: V
+    name: 聚氯乙烯
+    exchange: DCE
+    contracts: [V2609, V2604, V2605, V2606, V2607, V2608, V2610, V2611, V2612]
+  - code: WR
+    name: 线材
+    exchange: SHFE
+    contracts: [WR2605, WR2604, WR2606, WR2607, WR2608, WR2609, WR2610, WR2611, WR2612]
+  - code: Y
+    name: 豆油
+    exchange: DCE
+    contracts: [Y2609, Y2605, Y2607, Y2608, Y2611, Y2612]
+  - code: ZN
+    name: 沪锌
+    exchange: SHFE
+    contracts: [ZN2605, ZN2604, ZN2606, ZN2607, ZN2608, ZN2609, ZN2610, ZN2611, ZN2612]

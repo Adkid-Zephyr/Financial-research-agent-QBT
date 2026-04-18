@@ -75,6 +75,9 @@ uvicorn futures_research.api.app:app --reload
 
 - `http://127.0.0.1:8000/docs`
 - `http://127.0.0.1:8000/`
+- `http://127.0.0.1:8000/admin`
+
+当前 `/` 是 C 端投研入口，保留一句话研究、报告展示、数据来源与追问，并支持从已配置合约列表中选择具体合约；`/admin` 是原测试/验收工作台，保留健康检查、单品种/批量触发、WebSocket 事件、报告查询和删除。
 
 ### Review Agent
 
@@ -107,7 +110,7 @@ docker compose up --build -d
 
 1. 先通过前端控制台做健康检查。
 2. 连接 WebSocket 观察事件流。
-3. 触发单品种或批量运行。
+3. 触发单品种或批量运行；前端支持点击弹窗选择品种和合约，单品种可选具体合约，批量输入也支持 `CF2609,M2609` 这类精确合约。
 4. 检查 `outputs/` 或 `/reports` 返回结果。
 5. 需要质量复核时，把报告送进 `report_review_agent/`。
 
@@ -120,9 +123,36 @@ docker compose up --build -d
 - `ANTHROPIC_API_KEY`
 - `ANTHROPIC_BASE_URL`
 - `LLM_MODEL`
+- `ANALYSIS_RENDER_MODE`
+- `REPORT_RENDER_MODE`
+- `ENABLE_CTP_CONTRACT_CATALOG`
 - `REVIEW_AGENT_API_KEY`
 - `REVIEW_AGENT_BASE_URL`
 - `REVIEW_AGENT_MODEL`
+- `CTP_SNAPSHOT_BASE_URL`
+- `CTP_SNAPSHOT_AUTH_KEY`
+- `ENABLE_YAHOO_MARKET_SOURCE`
+- `ENABLE_AKSHARE_COMMODITY_SOURCE`
+
+当前 CTP 快照主链路默认使用期宝图 PC API：`https://pc-api.qibaotu.com`。受保护接口需要在服务端环境变量里设置 `CTP_SNAPSHOT_AUTH_KEY`；该值只应放在 `.env`、CI/CD Variables 或服务器私有配置中，不要写入前端代码。
+
+默认会把 `futures_research/catalogs/ctp_contract_catalog.yaml` 中的 CTP 合约目录合并到本地品种注册表；人工维护的 `varieties/*.yaml` 优先保留，用来承载更细的提示词、外盘和 AkShare 配置。需要临时只跑人工配置时，可设置 `ENABLE_CTP_CONTRACT_CATALOG=false`。
+
+默认配置会同时启用 CTP、yfinance 外盘/宏观与 AkShare 商品结构化数据。需要手动启动时也可以显式打开：
+
+```bash
+ENABLE_YAHOO_MARKET_SOURCE=true ENABLE_AKSHARE_COMMODITY_SOURCE=true \
+uvicorn futures_research.api.app:app --host 127.0.0.1 --port 8025
+```
+
+百炼 Coding Plan 走 Anthropic 兼容端：
+
+```dotenv
+ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic
+LLM_MODEL=kimi-k2.5
+```
+
+默认 `ANALYSIS_RENDER_MODE=hybrid`、`REPORT_RENDER_MODE=hybrid`，只有配置了 `ANTHROPIC_API_KEY` 时分析环节会调用模型做观点润色，研报正文仍由确定性模板写入数字和来源。单次运行也可以通过前端或 API 选择 `hybrid`、`llm`、`grounded_llm` 三种研报书写模式；若需要分析与研报撰写都默认调用模型，把两个环境模式都设为 `llm`，并确保百炼 key 可用。
 
 ## Current Repo Policy
 

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>报告库 - 期货投研 Agent</title>
+    <link rel="stylesheet" href="/static/consumer.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/">
+          <span class="brand-mark">FR</span>
+          <span>
+            <strong>期货投研 Agent</strong>
+            <small>报告库</small>
+          </span>
+        </a>
+        <nav class="topnav" aria-label="主导航">
+          <a href="/">开始研究</a>
+          <a href="/docs" target="_blank" rel="noreferrer">API 文档</a>
+          <a href="/admin#events-log" target="_blank" rel="noreferrer">后台运行日志</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="library-section">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Report Library</p>
+              <h1>报告库</h1>
+            </div>
+            <button id="refresh-library" class="ghost" type="button">刷新</button>
+          </div>
+          <div id="report-library" class="report-library"></div>
+        </section>
+
+        <section id="library-detail" class="workspace hidden">
+          <article class="answer-panel">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">报告详情</p>
+                <h2 id="library-detail-title">研报</h2>
+              </div>
+              <div class="download-actions">
+                <a id="library-download-md" class="chip-link hidden" target="_blank" rel="noreferrer">Markdown</a>
+                <a id="library-download-pdf" class="chip-link hidden" target="_blank" rel="noreferrer">PDF</a>
+              </div>
+            </div>
+            <div class="report-shell">
+              <article id="library-report-view" class="report-view"></article>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/markdown-renderer.js"></script>
+    <script src="/static/library.js"></script>
+  </body>
+</html>

@@ -115,6 +115,7 @@ input,
 .status-card strong {
   display: block;
   font-size: 16px;
+  line-height: 1.5;
 }
 
 .grid {
@@ -185,7 +186,8 @@ label {
   font-size: 14px;
 }
 
-input {
+input,
+select {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--line);
@@ -194,9 +196,99 @@ input {
   color: var(--ink);
 }
 
-input:focus {
+input:focus,
+select:focus {
   outline: 2px solid rgba(14, 107, 92, 0.18);
   border-color: rgba(14, 107, 92, 0.4);
+}
+
+.select-trigger {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 8px;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.72);
+  text-align: left;
+}
+
+.picker-table {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+  gap: 6px;
+  max-height: min(58vh, 420px);
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.picker-option {
+  display: grid;
+  gap: 3px;
+  min-height: 50px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
+  line-height: 1.25;
+  text-align: center;
+  transform: none;
+}
+
+.picker-option:hover {
+  transform: none;
+}
+
+.picker-option.selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.picker-option strong,
+.picker-option span {
+  display: block;
+}
+
+.picker-option span {
+  color: inherit;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.picker-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(29, 27, 25, 0.42);
+}
+
+.picker-dialog {
+  width: min(760px, 100%);
+  max-height: min(78vh, 680px);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-alt);
+  box-shadow: var(--shadow);
+}
+
+.picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.picker-head h3 {
+  margin: 0;
 }
 
 .checkbox-line {
@@ -262,6 +354,39 @@ button:hover {
   color: var(--muted);
 }
 
+.detail-meta {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.detail-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stat-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stat-chip strong {
+  color: var(--ink);
+}
+
+.detail-meta strong {
+  color: var(--ink);
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+}
+
 .console,
 .result-box {
   margin: 14px 0 0;
@@ -278,8 +403,62 @@ button:hover {
   line-height: 1.6;
 }
 
+.console-stream {
+  display: grid;
+  gap: 12px;
+  min-height: 420px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.event-card {
+  border: 1px solid rgba(14, 107, 92, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  overflow: hidden;
+}
+
+.event-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px 10px;
+  background: linear-gradient(180deg, rgba(14, 107, 92, 0.08), rgba(14, 107, 92, 0.02));
+}
+
+.event-card-header strong,
+.event-card-header span {
+  display: block;
+}
+
+.event-card-header strong {
+  color: var(--ink);
+}
+
+.event-card-header span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.event-card-body {
+  margin: 0;
+  padding: 0 16px 16px;
+  overflow: auto;
+  color: var(--ink);
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .short {
   min-height: 220px;
+  max-height: 360px;
 }
 
 .table-wrap {
@@ -299,6 +478,12 @@ td {
   text-align: left;
   border-bottom: 1px solid var(--line);
   font-size: 14px;
+  vertical-align: top;
+}
+
+.cell-run-id {
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+  font-size: 12px;
 }
 
 tbody tr {
@@ -351,6 +536,7 @@ tbody tr:hover {
   .form-grid {
     grid-template-columns: 1fr;
   }
+
 }
 
 @media (max-width: 720px) {
@@ -363,5 +549,10 @@ tbody tr:hover {
   .panel {
     padding: 18px;
     border-radius: 20px;
+  }
+
+  .console-stream {
+    min-height: 320px;
+    max-height: 320px;
   }
 }

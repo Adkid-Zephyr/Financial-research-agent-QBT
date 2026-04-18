@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from futures_research.data_sources import DataSourceRegistry, MockDataSource, WebSearchSource
+from futures_research import config
+from futures_research.data_sources import AkShareCommoditySource, CTPSnapshotSource, DataSourceRegistry, YahooMarketSource
 from futures_research.events import EventBus, get_event_bus
 from futures_research.llm import LLMClient
 from futures_research.prompts.loader import PromptRepository
@@ -23,8 +24,11 @@ def build_runtime() -> RuntimeContext:
     variety_registry.scan()
 
     data_source_registry = DataSourceRegistry()
-    data_source_registry.register(MockDataSource())
-    data_source_registry.register(WebSearchSource())
+    data_source_registry.register(CTPSnapshotSource())
+    if config.ENABLE_YAHOO_MARKET_SOURCE:
+        data_source_registry.register(YahooMarketSource())
+    if config.ENABLE_AKSHARE_COMMODITY_SOURCE:
+        data_source_registry.register(AkShareCommoditySource())
 
     return RuntimeContext(
         variety_registry=variety_registry,

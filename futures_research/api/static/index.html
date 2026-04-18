@@ -3,226 +3,126 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>期货投研 Agent 控制台</title>
-    <link rel="stylesheet" href="/static/styles.css" />
+    <title>期货投研 Agent</title>
+    <link rel="stylesheet" href="/static/consumer.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Futures Research Agent</p>
-          <h1>期货投研 Agent 测试控制台</h1>
-          <p class="hero-text">
-            这个页面把健康检查、手动触发、实时事件、报告查询和测试说明放在同一个界面里，方便你在本地和部署后快速验收。
-          </p>
-          <div class="hero-actions">
-            <button id="refresh-health" class="primary">刷新健康状态</button>
-            <button id="refresh-reports" class="secondary">刷新报告列表</button>
-            <button id="clear-events" class="ghost">清空事件面板</button>
-            <a class="link-chip" href="#report-library">跳到报告区</a>
-            <a class="link-chip" href="/docs" target="_blank" rel="noreferrer">打开接口文档</a>
-          </div>
-        </div>
-        <div class="hero-status">
-          <div class="status-card">
-            <span class="status-label">API 地址</span>
-            <strong id="api-origin">-</strong>
-          </div>
-          <div class="status-card">
-            <span class="status-label">WebSocket</span>
-            <strong id="ws-origin">-</strong>
-          </div>
-          <div class="status-card">
-            <span class="status-label">服务状态</span>
-            <strong id="health-status">未检查</strong>
-          </div>
-          <div class="status-card">
-            <span class="status-label">报告存储</span>
-            <strong id="storage-status">未知</strong>
-          </div>
-          <div class="status-card">
-            <span class="status-label">模型</span>
-            <strong id="model-status">未知</strong>
-          </div>
-        </div>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/">
+          <span class="brand-mark">FR</span>
+          <span>
+            <strong>期货投研 Agent</strong>
+            <small>商品期货研究助手</small>
+          </span>
+        </a>
+        <nav class="topnav" aria-label="主导航">
+          <a href="/library">报告库</a>
+          <a href="/docs" target="_blank" rel="noreferrer">API 文档</a>
+          <a href="/admin#events-log" target="_blank" rel="noreferrer">后台运行日志</a>
+        </nav>
       </header>
 
-      <main class="grid">
-        <section class="panel span-2" id="report-library">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">测试流程</p>
-              <h2>推荐验收顺序</h2>
+      <main>
+        <section class="research-stage" aria-labelledby="research-title">
+          <form id="consumer-run-form" class="search-panel">
+            <div class="chat-heading">
+              <p class="eyebrow">期货投研助手</p>
+              <h1 id="research-title">你想研究什么？</h1>
             </div>
-            <span class="chip">低代码前端</span>
-          </div>
-          <ol class="steps">
-            <li>先点“刷新健康状态”，确认 API 已启动，若存储开启会显示 PostgreSQL 已接入。</li>
-            <li>点击“连接运行事件”或“连接批量事件”，让 WebSocket 保持在线。</li>
-            <li>在“单品种触发”中提交 `CF`、`AU` 或 `LC`，观察事件流是否出现 `run_started` 到 `run_completed`。</li>
-            <li>在“批量触发”中提交 `CF,M,AU,AG,CU,AL,LC,SI` 或勾选“全部品种”，观察批量事件。</li>
-            <li>点击“刷新报告列表”，确认数据库已落库；未配置数据库时页面会提示只支持流程验证。</li>
-            <li>需要正式部署时，再对照页面底部“使用手册”执行 `docker compose` 和 cron 验收。</li>
-          </ol>
-        </section>
+            <textarea
+              id="research-prompt"
+              name="prompt"
+              aria-labelledby="research-title"
+              rows="5"
+              placeholder="例如：帮我看一下沪铜今天是偏多还是观望，重点关注外盘铜、美元指数、现货基差和数据缺口。"
+            ></textarea>
 
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">实时订阅</p>
-              <h2>WebSocket 事件</h2>
+            <div class="field-grid">
+              <label>
+                <span>品种</span>
+                <input id="symbol-select" name="symbol" type="hidden" value="CF" />
+                <button id="symbol-trigger" class="select-trigger" type="button">选择品种</button>
+              </label>
+              <label>
+                <span>合约</span>
+                <input id="contract-select" name="contract" type="hidden" value="" />
+                <button id="contract-trigger" class="select-trigger" type="button">选择合约</button>
+              </label>
+              <label>
+                目标日期
+                <input id="target-date" name="target_date" type="date" />
+              </label>
+              <label>
+                书写模式
+                <select id="report-render-mode" name="report_render_mode">
+                  <option value="hybrid">经典模式</option>
+                  <option value="llm">模型推理</option>
+                  <option value="grounded_llm">增强推理</option>
+                </select>
+              </label>
             </div>
-          </div>
-          <div class="stack-actions">
-            <button id="connect-run-events" class="primary">连接运行事件</button>
-            <button id="connect-batch-events" class="secondary">连接批量事件</button>
-            <button id="disconnect-events" class="ghost">断开连接</button>
-          </div>
-          <p class="muted" id="event-connection-status">当前未连接。</p>
-          <pre id="events-log" class="console"></pre>
-        </section>
 
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">手动触发</p>
-              <h2>单品种运行</h2>
+            <div class="form-actions">
+              <button id="start-research" class="primary" type="submit">开始研究</button>
             </div>
-          </div>
-          <form id="single-run-form" class="form-grid">
-            <label>
-              品种 / 合约
-              <input name="symbol" value="CF" placeholder="CF 或 CF2605" required />
-            </label>
-            <label>
-              目标日期
-              <input name="target_date" type="date" />
-            </label>
-            <button type="submit" class="primary">触发单品种</button>
           </form>
-          <pre id="single-run-result" class="result-box"></pre>
-        </section>
 
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">批量运行</p>
-              <h2>多品种触发</h2>
+          <div id="picker-modal" class="picker-modal hidden" role="dialog" aria-modal="true" aria-labelledby="picker-modal-title">
+            <div class="picker-dialog">
+              <div class="picker-head">
+                <h3 id="picker-modal-title">选择</h3>
+                <button id="picker-close" class="ghost" type="button">关闭</button>
+              </div>
+              <div id="picker-search-wrap" class="picker-search hidden">
+                <label for="picker-search">搜索品种</label>
+                <input id="picker-search" type="search" placeholder="输入品种名称、代码或交易所" autocomplete="off" />
+              </div>
+              <div id="picker-options" class="picker-table" aria-label="可选列表"></div>
             </div>
           </div>
-          <form id="batch-run-form" class="form-grid">
-            <label>
-              品种列表
-              <input name="symbols" value="CF,M,AU,AG,CU,AL,LC,SI" placeholder="CF,M,AU,AG,CU,AL,LC,SI" />
-            </label>
-            <label>
-              目标日期
-              <input name="target_date" type="date" />
-            </label>
-            <label>
-              并发数
-              <input name="concurrency" type="number" value="2" min="1" max="16" />
-            </label>
-            <label class="checkbox-line">
-              <input name="all_varieties" type="checkbox" />
-              执行全部已注册品种
-            </label>
-            <button type="submit" class="primary">触发批量</button>
-          </form>
-          <pre id="batch-run-result" class="result-box"></pre>
         </section>
 
-        <section class="panel span-2">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">报告查询</p>
-              <h2>已保存研报</h2>
-            </div>
-            <button id="refresh-reports-inline" class="secondary">刷新</button>
-          </div>
-          <form id="reports-filter-form" class="filters">
-            <label>
-              品种代码
-              <input name="variety_code" placeholder="CF" />
-            </label>
-            <label>
-              合约代码
-              <input name="symbol" placeholder="CF2605" />
-            </label>
-            <label>
-              日期
-              <input name="target_date" type="date" />
-            </label>
-            <label>
-              条数
-              <input name="limit" type="number" value="20" min="1" max="100" />
-            </label>
-            <button type="submit" class="ghost">应用筛选</button>
-          </form>
-          <div id="reports-state" class="muted">等待查询。</div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>run_id</th>
-                  <th>品种</th>
-                  <th>合约</th>
-                  <th>日期</th>
-                  <th>分数</th>
-                  <th>情绪</th>
-                  <th>通过</th>
-                </tr>
-              </thead>
-              <tbody id="reports-table-body"></tbody>
-            </table>
-          </div>
-          <div class="detail-panel">
-            <div class="detail-head">
-              <h3>报告详情</h3>
-              <div class="detail-actions">
-                <a id="open-report-pdf" class="link-chip hidden" target="_blank" rel="noreferrer">打开 PDF</a>
-                <a id="open-report-md" class="link-chip hidden" target="_blank" rel="noreferrer">打开 Markdown</a>
-                <button id="clear-report-detail" class="ghost">清空详情</button>
+        <section class="workspace">
+          <article class="answer-panel">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">研究结果</p>
+                <h2>研报</h2>
+              </div>
+              <div class="download-actions">
+                <a id="download-md" class="chip-link hidden" target="_blank" rel="noreferrer">Markdown</a>
+                <a id="download-pdf" class="chip-link hidden" target="_blank" rel="noreferrer">PDF</a>
               </div>
             </div>
-            <pre id="report-detail" class="console short"></pre>
-          </div>
-        </section>
 
-        <section class="panel span-2">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">使用手册</p>
-              <h2>本地与部署后怎么用</h2>
+            <div id="research-status" class="research-status idle" aria-live="polite">
+              <span id="status-spinner" class="status-spinner hidden" aria-hidden="true"></span>
+              <div>
+                <strong id="run-status">还没有开始研究</strong>
+                <span id="status-detail">输入问题后点击开始研究。</span>
+              </div>
             </div>
-          </div>
-          <div class="manual-grid">
-            <article>
-              <h3>本地开发</h3>
-              <p>1. 运行 `uvicorn futures_research.api.app:app --reload`。</p>
-              <p>2. 打开当前页面，先检查健康状态，再连接 WebSocket。</p>
-              <p>3. 通过表单触发 `POST /runs` 或 `POST /batches`，观察事件流。</p>
-              <p>4. 若启用了数据库，再查询 `/reports` 验证落库。</p>
-            </article>
-            <article>
-              <h3>Docker Compose</h3>
-              <p>1. `cp .env.example .env`。</p>
-              <p>2. `docker compose up --build -d`。</p>
-              <p>3. 浏览器访问 `http://127.0.0.1:8080/`。</p>
-              <p>4. 若要做计划任务，执行 `chmod +x deploy/cron/run_batch.sh` 后交给宿主机 cron。</p>
-            </article>
-            <article>
-              <h3>推荐验收点</h3>
-              <p>1. `/healthz` 为 `ok`。</p>
-              <p>2. 单品种触发后出现 `run_completed`。</p>
-              <p>3. 批量触发后出现 `batch_completed`。</p>
-              <p>4. 若存储开启，报告列表能显示新生成的 `run_id` 和分数。</p>
-            </article>
-          </div>
+
+            <div id="progress-steps" class="progress-steps">
+              <span data-step="aggregate">整理数据</span>
+              <span data-step="analyze">形成观点</span>
+              <span data-step="write">撰写研报</span>
+              <span data-step="review">检查风险</span>
+            </div>
+
+            <div id="answer-empty" class="empty-state">
+              研报生成后会出现在这里。正文支持标题、列表、表格和代码块渲染，并在框内滚动阅读。
+            </div>
+            <div id="report-shell" class="report-shell hidden">
+              <article id="report-view" class="report-view hidden"></article>
+            </div>
+          </article>
         </section>
       </main>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/markdown-renderer.js"></script>
+    <script src="/static/consumer.js"></script>
   </body>
 </html>

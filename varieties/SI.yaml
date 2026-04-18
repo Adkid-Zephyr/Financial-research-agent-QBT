@@ -13,6 +13,22 @@ key_factors:
 news_keywords:
   - [工业硅, 多晶硅, 有机硅, 开工率, 仓单, 电价]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
+  - type: yahoo_market
+    params:
+      max_stale_days: 5
+      assets:
+        - ticker: DX-Y.NYB
+          name: 美元指数
+          role: macro
+        - ticker: CNY=X
+          name: USD/CNY
+          role: fx
+  - type: akshare_commodity
+    params:
+      max_stale_days: 10
+      modules:
+        - type: spot_basis
+          symbol: SI
+          name: 工业硅现货与基差
 prompt_template: industrial_materials_futures

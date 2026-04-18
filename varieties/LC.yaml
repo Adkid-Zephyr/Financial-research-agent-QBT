@@ -13,6 +13,22 @@ key_factors:
 news_keywords:
   - [碳酸锂, 锂盐, 动力电池, 正极材料, 库存, 锂价]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
+  - type: yahoo_market
+    params:
+      max_stale_days: 5
+      assets:
+        - ticker: DX-Y.NYB
+          name: 美元指数
+          role: macro
+        - ticker: CNY=X
+          name: USD/CNY
+          role: fx
+  - type: akshare_commodity
+    params:
+      max_stale_days: 10
+      modules:
+        - type: spot_basis
+          symbol: LC
+          name: 碳酸锂现货与基差
 prompt_template: industrial_materials_futures

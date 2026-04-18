@@ -13,6 +13,26 @@ key_factors:
 news_keywords:
   - [沪铝, 电解铝, 氧化铝, 铝库存, 地产, 汽车]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
+  - type: yahoo_market
+    params:
+      max_stale_days: 5
+      assets:
+        - ticker: ALI=F
+          name: 铝期货
+          role: international_market
+          unit: 美元/吨
+        - ticker: DX-Y.NYB
+          name: 美元指数
+          role: macro
+        - ticker: CNY=X
+          name: USD/CNY
+          role: fx
+  - type: akshare_commodity
+    params:
+      max_stale_days: 10
+      modules:
+        - type: spot_basis
+          symbol: AL
+          name: 沪铝现货与基差
 prompt_template: industrial_materials_futures

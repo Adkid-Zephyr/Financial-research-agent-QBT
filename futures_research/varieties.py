@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import yaml
 
 from futures_research import config
+from futures_research.contract_catalog import load_ctp_contract_catalog, merge_catalog_variety
 from futures_research.models.variety import VarietyDefinition
 
 
@@ -22,6 +23,13 @@ class VarietyRegistry:
             data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             variety = VarietyDefinition.model_validate(data)
             self._varieties[variety.code.upper()] = variety
+        if config.ENABLE_CTP_CONTRACT_CATALOG:
+            for variety in load_ctp_contract_catalog():
+                code = variety.code.upper()
+                if code in self._varieties:
+                    self._varieties[code] = merge_catalog_variety(self._varieties[code], variety)
+                else:
+                    self._varieties[code] = variety
 
     def register(self, variety: VarietyDefinition) -> None:
         self._varieties[variety.code.upper()] = variety
@@ -36,7 +44,7 @@ class VarietyRegistry:
         return matched
 
     def match_contract(self, contract: str) -> Optional[VarietyDefinition]:
-        for code, variety in self._varieties.items():
+        for code, variety in sorted(self._varieties.items(), key=lambda item: len(item[0]), reverse=True):
             if contract.startswith(code):
                 return variety
         return None
@@ -50,5 +58,19 @@ class VarietyRegistry:
             return variety.contracts[0]
         return symbol_or_code.upper()
 
-    def list_codes(self):
+    def list_codes(self) -> List[str]:
         return sorted(self._varieties.keys())
+
+    def list_varieties(self) -> List[VarietyDefinition]:
+        return [self._varieties[code] for code in self.list_codes()]
+
+    def normalize_configured_contract(self, variety_code: str, contract: str) -> str:
+        variety = self.get(variety_code)
+        normalized_contract = contract.strip().upper()
+        configured = {item.upper(): item.upper() for item in variety.contracts}
+        if normalized_contract not in configured:
+            raise ValueError(
+                "Contract '%s' is not configured for variety '%s'. Available contracts: %s"
+                % (contract, variety.code.upper(), ", ".join(variety.contracts))
+            )
+        return configured[normalized_contract]

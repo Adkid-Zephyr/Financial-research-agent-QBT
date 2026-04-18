@@ -1,0 +1,95 @@
+stages:
+  - test
+  - package
+  - deploy
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - when: never
+
+default:
+  tags:
+    - demo-shell
+  before_script:
+    - python3 --version
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+
+cache:
+  key: "$CI_JOB_NAME"
+  paths:
+    - .cache/pip
+
+test:
+  stage: test
+  script:
+    - export PATH="$HOME/.local/bin:$PATH"
+    - |
+      if ! python3 -m venv .venv >/dev/null 2>&1; then
+        echo "python3-venv unavailable, falling back to virtualenv..."
+        if ! python3 -m pip --version >/dev/null 2>&1; then
+          if command -v curl >/dev/null 2>&1; then
+            curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+          elif command -v wget >/dev/null 2>&1; then
+            wget -qO /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py
+          else
+            echo "Neither curl nor wget is available to bootstrap pip." >&2
+            exit 1
+          fi
+          python3 /tmp/get-pip.py --user
+        fi
+        python3 -m pip install --user --upgrade pip virtualenv
+        python3 -m virtualenv .venv
+      fi
+    - |
+      if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+        .venv/bin/python -m ensurepip --upgrade
+      fi
+    - . .venv/bin/activate
+    - python -m pip --version
+    - python -m pip install --upgrade pip
+    - python -m pip install -r requirements.txt
+    - python -m pip install -r report_review_agent/requirements.txt
+    - DATABASE_URL='' python -m unittest discover -s tests -v
+    - DATABASE_URL='' python -m unittest discover -s report_review_agent/tests -v
+
+package-main:
+  stage: package
+  needs: ["test"]
+  script:
+    - mkdir -p dist
+    - BUILD_FILE="dist/${CI_PROJECT_NAME}-${CI_COMMIT_SHORT_SHA}.tar.gz"
+    - tar
+      --exclude-vcs
+      --exclude=".venv"
+      --exclude="__pycache__"
+      --exclude="*.pyc"
+      --exclude=".cache"
+      --exclude="dist"
+      --exclude="logs/*"
+      --exclude="outputs/*"
+      -czf "${BUILD_FILE}" .
+    - sha256sum "${BUILD_FILE}" > "${BUILD_FILE}.sha256"
+    - ls -lh dist
+  artifacts:
+    expire_in: 14 days
+    paths:
+      - dist/*.tar.gz
+      - dist/*.sha256
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+deploy-main:
+  stage: deploy
+  needs: ["package-main"]
+  environment:
+    name: production
+  script:
+    - chmod +x deploy/ci/deploy_main.sh
+    - DEPLOY_USE_SUDO=false DEPLOY_PATH=/opt/apps/research-report-agent deploy/ci/deploy_main.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'

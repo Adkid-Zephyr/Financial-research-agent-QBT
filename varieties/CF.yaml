@@ -4,7 +4,7 @@ exchange: CZCE
 contracts:
   - CF2605
   - CF2609
-  - CF2701
+  - CF2611
 key_factors:
   - 新疆棉产量与收储政策
   - 纺纱开机率与棉纱价差
@@ -13,6 +13,26 @@ key_factors:
 news_keywords:
   - [棉花, 郑棉, 纺织, ICE, USDA, 新疆棉]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
+  - type: yahoo_market
+    params:
+      max_stale_days: 5
+      assets:
+        - ticker: CT=F
+          name: ICE棉花
+          role: international_market
+          unit: 美分/磅
+        - ticker: DX-Y.NYB
+          name: 美元指数
+          role: macro
+        - ticker: CNY=X
+          name: USD/CNY
+          role: fx
+  - type: akshare_commodity
+    params:
+      max_stale_days: 10
+      modules:
+        - type: spot_basis
+          symbol: CF
+          name: 郑棉现货与基差
 prompt_template: default_futures

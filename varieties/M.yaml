@@ -4,7 +4,7 @@ exchange: DCE
 contracts:
   - M2605
   - M2609
-  - M2701
+  - M2611
 key_factors:
   - 大豆到港节奏与压榨利润
   - 生猪养殖利润与饲料需求
@@ -13,6 +13,30 @@ key_factors:
 news_keywords:
   - [豆粕, 大豆, 压榨, 美豆, 南美天气, 饲料]
 data_sources:
-  - type: web_search
-  - type: mock
+  - type: ctp_snapshot
+  - type: yahoo_market
+    params:
+      max_stale_days: 5
+      assets:
+        - ticker: ZM=F
+          name: CBOT豆粕
+          role: international_market
+          unit: 美元/短吨
+        - ticker: ZS=F
+          name: CBOT大豆
+          role: upstream_external
+          unit: 美分/蒲式耳
+        - ticker: DX-Y.NYB
+          name: 美元指数
+          role: macro
+        - ticker: CNY=X
+          name: USD/CNY
+          role: fx
+  - type: akshare_commodity
+    params:
+      max_stale_days: 10
+      modules:
+        - type: spot_basis
+          symbol: M
+          name: 豆粕现货与基差
 prompt_template: default_futures

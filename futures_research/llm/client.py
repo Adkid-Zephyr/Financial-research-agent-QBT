@@ -30,12 +30,12 @@ class LLMClient:
     async def generate_analysis(self, prompt: str, context: Dict[str, Any]) -> str:
         if self.is_live:
             return await asyncio.to_thread(self._call_anthropic, prompt, context, "analysis")
-        return self._mock_analysis(context)
+        raise RuntimeError("LLM analysis requested but no live Anthropic-compatible client is configured.")
 
     async def generate_report(self, prompt: str, context: Dict[str, Any]) -> str:
         if self.is_live:
             return await asyncio.to_thread(self._call_anthropic, prompt, context, "report")
-        return self._mock_report(context)
+        raise RuntimeError("LLM report generation requested but no live Anthropic-compatible client is configured.")
 
     def _call_anthropic(self, prompt: str, context: Dict[str, Any], kind: str) -> str:
         tools: List[Dict[str, Any]] = []
