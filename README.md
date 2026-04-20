@@ -1,199 +1,267 @@
-# Financial Research Agent
+# FINANCIAL RESEARCH AGENT
 
-一个面向商品期货场景的投研自动化项目，目标是把"数据收集 -> 多 Agent 分析 -> 研报生成 -> 质检复核 -> API / Web 控制台交付"串成一条可运行、可验收、可部署的链路。
+<div align="center">
 
-项目当前由两个彼此协作、又相对独立的部分组成：
+**A Multi-Agent Pipeline for Automated Futures Research & Report Review**
 
-- `futures_research/`
-  主投研工作流，负责触发、分析、写作、事件流和报告存储
-- `report_review_agent/`
-  研报复核子项目，负责对 AI 生成的报告做规则化评分、问题定位和改写建议
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python](https://img.shields.io/badge/Python-3.11+-green.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-teal.svg)](https://fastapi.tiangolo.com/)
+[![Stars](https://img.shields.io/github/stars/Adkid-Zephyr/Financial-research-agent-QBT?style=social)](https://github.com/Adkid-Zephyr/Financial-research-agent-QBT)
 
-## Why This Exists
+[English](#) | [中文](./README_CN.md) | [日本語](./README_JP.md)
 
-传统投研流程里，很多时间花在重复整理信息、统一格式、追踪事件和做首轮质量检查上。这个仓库想解决的不是"生成一篇文本"这么简单，而是把投研产出包装成一个更接近生产可用的系统：
+---
 
-- 能手动触发单品种或批量任务
-- 能通过 WebSocket 实时观察运行事件
-- 能把结果落盘或落库，方便追踪与复盘
-- 能通过前端控制台完成本地和部署后的验收
-- 能在报告生成后再走一轮结构化 review
+*Building an end-to-end research automation system for commodity futures — from data ingestion to structured reports with quality assurance.*
 
-## Project Shape
+</div>
 
-```text
+---
+
+## 🚀 THE STORY
+
+> **Why I'm Building This In Public**
+
+In traditional quantitative research workflows, analysts spend 60-70% of their time on repetitive tasks: collecting data, formatting reports, tracking events, and performing initial quality checks. This project started as an experiment to answer a simple question:
+
+**Can we build a system that handles the "pipeline" work, so researchers can focus on what matters — analysis and decision-making?**
+
+What began as a proof-of-concept has evolved into a full-stack research automation system with:
+- Multi-agent orchestration (LangGraph)
+- Real-time WebSocket event streaming
+- Production-ready FastAPI backend
+- Docker Compose deployment
+- Quality review with structured rubrics
+
+This is a **personal portfolio project** developed during my employment at **AnnPoint (广州安点科技)**. The company graciously granted me full rights to release this as an open-source project, while keeping proprietary data sources private.
+
+---
+
+## ✨ KEY FEATURES
+
+| Feature | Description |
+|---------|-------------|
+| 🔀 **Multi-Agent Pipeline** | Orchestrated workflow: Aggregator → Analyzer → Writer → Reviewer |
+| 📊 **Multi-Source Data Fusion** | CTP snapshots, Yahoo Finance, AkShare commodity data |
+| 🔄 **Review Loop** | Up to 2 rounds of quality review with structured rubrics |
+| 🌐 **FastAPI + WebSocket** | Real-time event streaming for task monitoring |
+| 📦 **PostgreSQL Storage** | Persistent report archive with query API |
+| 🐳 **Docker Compose** | One-command deployment: app + postgres + nginx |
+| 🖥️ **Web Console** | Health check, task trigger, event stream, report viewer |
+| 📝 **Report Review Agent** | Standalone review tool with Markdown/PDF/JSON export |
+
+---
+
+## 🏗️ ARCHITECTURE
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        FastAPI Backend                           │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────────────┐ │
+│  │ /runs   │  │/batches │  │/reports │  │ WebSocket /ws/events│ │
+│  └─────────┘  └─────────┘  └─────────┘  └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     LangGraph Workflow                           │
+│                                                                  │
+│   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
+│   │Aggregate │───▶│ Analyzer │───▶│  Writer  │───▶│ Reviewer │  │
+│   └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
+│        │              │               │               │         │
+│        ▼              ▼               ▼               ▼         │
+│   ┌──────────────────────────────────────────────────────────┐  │
+│   │              Data Source Registry                         │  │
+│   │   CTP Snapshot │ Yahoo Finance │ AkShare │ Mock (dev)    │  │
+│   └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Storage Layer                               │
+│          PostgreSQL (production) / SQLite (local dev)           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📁 PROJECT STRUCTURE
+
+```
 .
-├── futures_research/          # 主投研工作流与 API
-├── report_review_agent/       # 研报复核子项目
-├── deploy/                    # Docker / Nginx / cron 部署脚本
-├── templates/                 # 请求模板与业务说明
-├── varieties/                 # 品种配置
-├── tests/                     # 主项目测试
-├── memory/                    # 阶段交接与项目记忆
-├── outputs/                   # 主项目产物目录（默认仅保留 .gitkeep）
-└── logs/                      # 运行日志目录
+├── futures_research/          # Main workflow & API
+│   ├── api/                   # FastAPI routes & static frontend
+│   ├── agents/                # LangGraph nodes
+│   ├── data_sources/          # CTP, Yahoo, AkShare adapters
+│   ├── storage/               # PostgreSQL repository
+│   └── events/                # WebSocket event bus
+├── report_review_agent/       # Standalone review tool
+├── deploy/                    # Docker, Nginx, cron scripts
+├── varieties/                 # Commodity YAML configs
+├── tests/                     # 40+ unit tests
+└── memory/                    # Development handoff docs
 ```
 
-## Core Capabilities
+---
 
-### 1. Futures Research Workflow
+## ⚡ QUICKSTART
 
-- FastAPI 接口，支持健康检查、单次运行和批量运行
-- WebSocket 事件流，便于前端实时观察任务状态
-- 多 Agent 分工，包括 analyzer / writer / reviewer / aggregator
-- CLI 触发方式，适合本地调试与批量执行
-- PostgreSQL 存储接口与本地文件产物归档
+### Prerequisites
+- Python 3.11+
+- Docker & Docker Compose (for deployment)
 
-### 2. Research Review Agent
-
-- 支持上传 `.md`、`.txt` 和文本型 `.pdf`
-- 使用确定性 rubric 做质量评分
-- 输出问题列表、改进建议和结构化评审结果
-- 可选接入兼容 Anthropic 的模型增强文案建议
-- 导出 Markdown、PDF、JSON 三类评审产物
-
-### 3. Deployment and Acceptance
-
-- Docker Compose MVP 部署链路
-- Nginx 统一入口
-- 宿主机 cron 最小化调度方案
-- Web 控制台用于健康检查、触发任务、查看事件和查询报告
-
-## Quick Start
-
-### Local API
+### Local Development
 
 ```bash
-cd /Users/ann/Documents/投研agent
+# Clone the repository
+git clone https://github.com/Adkid-Zephyr/Financial-research-agent-QBT.git
+cd Financial-research-agent-QBT
+
+# Create virtual environment
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
-uvicorn futures_research.api.app:app --reload
+
+# Start the API server
+uvicorn futures_research.api.app:app --reload --port 8025
 ```
 
-然后打开：
+Then open:
+- 🖥️ **Frontend**: http://127.0.0.1:8025/
+- 🔧 **Admin Console**: http://127.0.0.1:8025/admin
+- 📖 **API Docs**: http://127.0.0.1:8025/docs
+- 🔌 **WebSocket**: ws://127.0.0.1:8025/ws/events
 
-- `http://127.0.0.1:8000/docs`
-- `http://127.0.0.1:8000/`
-- `http://127.0.0.1:8000/admin`
-
-当前 `/` 是 C 端投研入口，保留一句话研究、报告展示、数据来源与追问，并支持从已配置合约列表中选择具体合约；`/admin` 是原测试/验收工作台，保留健康检查、单品种/批量触发、WebSocket 事件、报告查询和删除。
-
-### Review Agent
+### Docker Deployment
 
 ```bash
-cd /Users/ann/Documents/投研agent
-source .venv/bin/activate
-python report_review_agent/run.py
-```
-
-然后打开：
-
-- `http://127.0.0.1:8020`
-
-### Docker Compose
-
-```bash
-cd /Users/ann/Documents/投研agent
+# Copy environment template
 cp .env.example .env
+
+# Configure your settings (optional: add ANTHROPIC_API_KEY for LLM mode)
+# Edit .env with your preferred editor
+
+# Launch with Docker Compose
 docker compose up --build -d
+
+# Check health
+curl http://127.0.0.1:8080/healthz
 ```
 
-默认入口：
+Default endpoints:
+| Service | URL |
+|---------|-----|
+| Frontend | http://127.0.0.1:8080/ |
+| Health Check | http://127.0.0.1:8080/healthz |
+| API Docs | http://127.0.0.1:8080/docs |
+| WebSocket | ws://127.0.0.1:8080/ws/events |
 
-- Frontend: `http://127.0.0.1:8080/`
-- Health: `http://127.0.0.1:8080/healthz`
-- Docs: `http://127.0.0.1:8080/docs`
-- WebSocket: `ws://127.0.0.1:8080/ws/events`
+---
 
-## Suggested Flow
+## 🔧 CONFIGURATION
 
-1. 先通过前端控制台做健康检查。
-2. 连接 WebSocket 观察事件流。
-3. 触发单品种或批量运行；前端支持点击弹窗选择品种和合约，单品种可选具体合约，批量输入也支持 `CF2609,M2609` 这类精确合约。
-4. 检查 `outputs/` 或 `/reports` 返回结果。
-5. 需要质量复核时，把报告送进 `report_review_agent/`。
+### Environment Variables
 
-## Environment Notes
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ANTHROPIC_API_KEY` | LLM API key (optional) | - |
+| `ANTHROPIC_BASE_URL` | LLM endpoint URL | - |
+| `LLM_MODEL` | Model identifier | `kimi-k2.5` |
+| `DATABASE_URL` | PostgreSQL DSN (optional) | SQLite fallback |
+| `ANALYSIS_RENDER_MODE` | `deterministic` / `hybrid` / `llm` | `hybrid` |
+| `REPORT_RENDER_MODE` | `deterministic` / `hybrid` / `llm` | `hybrid` |
+| `ENABLE_YAHOO_MARKET_SOURCE` | Enable Yahoo Finance data | `false` |
+| `ENABLE_AKSHARE_COMMODITY_SOURCE` | Enable AkShare data | `false` |
 
-项目支持无模型密钥的流程验证模式；未配置真实模型时，可回退到 mock 流程，方便先联通整条链路。
-
-常见环境变量包括：
-
-- `ANTHROPIC_API_KEY`
-- `ANTHROPIC_BASE_URL`
-- `LLM_MODEL`
-- `ANALYSIS_RENDER_MODE`
-- `REPORT_RENDER_MODE`
-- `ENABLE_CTP_CONTRACT_CATALOG`
-- `REVIEW_AGENT_API_KEY`
-- `REVIEW_AGENT_BASE_URL`
-- `REVIEW_AGENT_MODEL`
-- `CTP_SNAPSHOT_BASE_URL`
-- `CTP_SNAPSHOT_AUTH_KEY`
-- `ENABLE_YAHOO_MARKET_SOURCE`
-- `ENABLE_AKSHARE_COMMODITY_SOURCE`
-
-当前 CTP 快照主链路默认使用期宝图 PC API：`https://pc-api.qibaotu.com`。受保护接口需要在服务端环境变量里设置 `CTP_SNAPSHOT_AUTH_KEY`；该值只应放在 `.env`、CI/CD Variables 或服务器私有配置中，不要写入前端代码。
-
-默认会把 `futures_research/catalogs/ctp_contract_catalog.yaml` 中的 CTP 合约目录合并到本地品种注册表；人工维护的 `varieties/*.yaml` 优先保留，用来承载更细的提示词、外盘和 AkShare 配置。需要临时只跑人工配置时，可设置 `ENABLE_CTP_CONTRACT_CATALOG=false`。
-
-默认配置会同时启用 CTP、yfinance 外盘/宏观与 AkShare 商品结构化数据。需要手动启动时也可以显式打开：
+### Running with External Data Sources
 
 ```bash
-ENABLE_YAHOO_MARKET_SOURCE=true ENABLE_AKSHARE_COMMODITY_SOURCE=true \
-uvicorn futures_research.api.app:app --host 127.0.0.1 --port 8025
+ENABLE_YAHOO_MARKET_SOURCE=true \
+ENABLE_AKSHARE_COMMODITY_SOURCE=true \
+uvicorn futures_research.api.app:app --port 8025
 ```
 
-百炼 Coding Plan 走 Anthropic 兼容端：
+---
 
-```dotenv
-ANTHROPIC_BASE_URL=https://coding.dashscope.aliyuncs.com/apps/anthropic
-LLM_MODEL=kimi-k2.5
+## 📈 ROADMAP
+
+> **Building in Public — Here's where we're headed**
+
+### Phase 2 (Planned)
+- [ ] More data source integrations (Wind, Bloomberg API)
+- [ ] Advanced scheduling with task orchestration
+- [ ] Fine-grained report scoring dimensions
+- [ ] Enhanced frontend with historical playback
+- [ ] Multi-user support with authentication
+- [ ] GitHub Actions CI/CD pipeline
+
+### Current Status
+- ✅ Phase 1 Complete: Full workflow, API, WebSocket, Storage
+- ✅ Docker Compose MVP deployment
+- ✅ Multi-source data fusion (CTP + Yahoo + AkShare)
+- ✅ Quality review loop with structured rubrics
+- ✅ Web console for monitoring and control
+
+---
+
+## 🧪 TESTING
+
+```bash
+# Run all tests
+python -m unittest discover -s tests
+
+# Run specific modules
+python -m unittest tests.test_workflow tests.test_api
+
+# With coverage (optional)
+pip install coverage
+coverage run -m unittest discover -s tests
+coverage report
 ```
 
-默认 `ANALYSIS_RENDER_MODE=hybrid`、`REPORT_RENDER_MODE=hybrid`，只有配置了 `ANTHROPIC_API_KEY` 时分析环节会调用模型做观点润色，研报正文仍由确定性模板写入数字和来源。单次运行也可以通过前端或 API 选择 `hybrid`、`llm`、`grounded_llm` 三种研报书写模式；若需要分析与研报撰写都默认调用模型，把两个环境模式都设为 `llm`，并确保百炼 key 可用。
+---
 
-## Current Repo Policy
-
-为了把仓库保持成一个适合继续迭代的基线，以下内容默认不提交：
-
-- 本地密钥文件，如 `.env`
-- 虚拟环境目录，如 `.venv/`
-- 本地数据库文件
-- 运行生成的 `outputs/` 产物
-
-## Roadmap Direction
-
-这个仓库接下来很适合继续往几个方向演进：
-
-- 更真实的数据源接入
-- 更稳定的批处理与任务编排
-- 更细粒度的报告评分维度
-- 更完整的前端展示与回放能力
-- 更规范的 GitHub 协作与 CI 流程
-
-## Background
-
-这是一个带有明显工程化倾向的投研 Agent 原型：不是只验证某个 prompt，而是在验证一整套"可持续跑起来"的研究生产链路。它既能当实验台，也能逐步打磨成一个更正式的内部研究系统。
-
-## License & Attribution
-
-This project is licensed under the **Apache License 2.0**.
+## 📜 LICENSE & ATTRIBUTION
 
 ```
 Copyright 2026 FENGSHUO LIU (刘丰硕)
 
-Developed during employment at AnnPoint 广州安点科技.
-The company has granted full rights to the author for this personal project.
-
-Tick-level data sources provided by AnnPoint for testing purposes remain 
-proprietary and are not included. Users may integrate their own data sources 
-for testing and performance evaluation.
+Licensed under the Apache License, Version 2.0
 ```
 
-**Author**: [FENGSHUO LIU](https://github.com/Adkid-Zephyr) (刘丰硕)
+This project was developed during employment at **AnnPoint 广州安点科技**. The company has granted full rights to the author for this personal open-source project.
 
-**Acknowledgments**: 
-- [Kris77z](https://github.com/Kris77z) for CI/CD pipeline setup and deployment support
-- AnnPoint 广州安点科技 for providing testing infrastructure and tick-level data sources
+> ⚠️ **Note**: Tick-level data sources provided by AnnPoint for testing remain proprietary and are not included. Users may integrate their own data sources for testing and evaluation.
+
+### Author
+**FENGSHUO LIU** ([@Adkid-Zephyr](https://github.com/Adkid-Zephyr))
+
+### Acknowledgments
+- **Kris77z** ([@Kris77z](https://github.com/Kris77z)) — CI/CD pipeline setup and deployment support
+- **AnnPoint 广州安点科技** — Testing infrastructure and data source support
+
+---
+
+## 🤝 CONTRIBUTING
+
+This is a personal portfolio project, but I welcome:
+- 🐛 Bug reports and issue discussions
+- 💡 Feature suggestions and roadmap feedback
+- 📖 Documentation improvements
+- 🔀 Pull requests for bug fixes
+
+Feel free to open an issue or start a discussion!
+
+---
+
+<div align="center">
+
+**Built with ❤️ by a quant-turned-developer who believes research automation should be open and accessible.**
+
+[⬆ Back to Top](#financial-research-agent)
+
+</div>
