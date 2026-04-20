@@ -175,4 +175,25 @@ LLM_MODEL=kimi-k2.5
 
 ## Background
 
-这是一个带有明显工程化倾向的投研 Agent 原型：不是只验证某个 prompt，而是在验证一整套“可持续跑起来”的研究生产链路。它既能当实验台，也能逐步打磨成一个更正式的内部研究系统。
+这是一个带有明显工程化倾向的投研 Agent 原型：不是只验证某个 prompt，而是在验证一整套"可持续跑起来"的研究生产链路。它既能当实验台，也能逐步打磨成一个更正式的内部研究系统。
+
+## License & Attribution
+
+This project is licensed under the **Apache License 2.0**.
+
+```
+Copyright 2026 FENGSHUO LIU (刘丰硕)
+
+Developed during employment at AnnPoint 广州安点科技.
+The company has granted full rights to the author for this personal project.
+
+Tick-level data sources provided by AnnPoint for testing purposes remain 
+proprietary and are not included. Users may integrate their own data sources 
+for testing and performance evaluation.
+```
+
+**Author**: [FENGSHUO LIU](https://github.com/Adkid-Zephyr) (刘丰硕)
+
+**Acknowledgments**: 
+- [Kris77z](https://github.com/Kris77z) for CI/CD pipeline setup and deployment support
+- AnnPoint 广州安点科技 for providing testing infrastructure and tick-level data sources
