@@ -38,6 +38,7 @@ DEFAULT_ALLOWED_SOURCE_PREFIXES = [
     "AkShare:",
     "数据覆盖范围说明",
 ]
+SOURCE_LABEL_SPLIT_RE = re.compile(r"\s*(?:；|;|、|,|，)\s*")
 
 
 def _has_sources(text: str) -> bool:
@@ -48,8 +49,10 @@ def _extract_source_labels(text: str) -> List[str]:
     labels = []
     for match in re.finditer(r"来源[:：]([^\n）)]+)", text):
         label = match.group(1).strip()
-        if label:
-            labels.append(label)
+        for part in SOURCE_LABEL_SPLIT_RE.split(label):
+            part = part.strip()
+            if part:
+                labels.append(part)
     return labels
 
 
