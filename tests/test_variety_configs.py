@@ -31,6 +31,16 @@ class VarietyConfigTests(unittest.TestCase):
                 self.assertIn("ctp_snapshot", source_types)
                 self.assertGreater(len(variety.contracts), 0)
 
+    def test_registry_normalizes_whitespace_in_user_symbols(self):
+        registry = VarietyRegistry()
+        registry.scan()
+
+        self.assertEqual(registry.get(" cf ").code, "CF")
+        self.assertEqual(registry.get(" cf2609 ").code, "CF")
+        self.assertEqual(registry.resolve_contract(" cf "), "CF2605")
+        self.assertEqual(registry.resolve_contract(" cf2609 "), "CF2609")
+        self.assertEqual(registry.normalize_configured_contract(" cf ", " cf2609 "), "CF2609")
+
 
 if __name__ == "__main__":
     unittest.main()
