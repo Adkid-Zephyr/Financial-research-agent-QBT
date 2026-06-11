@@ -35,7 +35,7 @@ class VarietyRegistry:
         self._varieties[variety.code.upper()] = variety
 
     def get(self, symbol_or_code: str) -> VarietyDefinition:
-        normalized = symbol_or_code.upper()
+        normalized = symbol_or_code.strip().upper()
         if normalized in self._varieties:
             return self._varieties[normalized]
         matched = self.match_contract(normalized)
@@ -44,19 +44,20 @@ class VarietyRegistry:
         return matched
 
     def match_contract(self, contract: str) -> Optional[VarietyDefinition]:
+        normalized_contract = contract.strip().upper()
         for code, variety in sorted(self._varieties.items(), key=lambda item: len(item[0]), reverse=True):
-            if contract.startswith(code):
+            if normalized_contract.startswith(code):
                 return variety
         return None
 
     def resolve_contract(self, symbol_or_code: str) -> str:
-        normalized = symbol_or_code.upper()
+        normalized = symbol_or_code.strip().upper()
         if normalized in self._varieties:
             variety = self._varieties[normalized]
             if not variety.contracts:
                 raise ValueError("Variety '%s' has no configured contracts" % normalized)
             return variety.contracts[0]
-        return symbol_or_code.upper()
+        return normalized
 
     def list_codes(self) -> List[str]:
         return sorted(self._varieties.keys())
