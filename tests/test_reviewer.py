@@ -257,6 +257,55 @@ COMEX 黄金与美元波动温和。（来源：CTP snapshot API）
             any("包含未登记数据来源" in item for item in result["review_result"]["blocking_issues"])
         )
 
+    async def test_mixed_registered_and_unknown_sources_trigger_blocking_issue(self):
+        runtime = build_runtime()
+        state = {
+            "symbol": "AU2606",
+            "variety_code": "AU",
+            "variety": "沪金",
+            "target_date": date.today(),
+            "report_draft": """
+# 标题
+> **核心观点**：中性。
+> **情绪**：中性 | **置信度**：中
+
+## 一、行情回顾
+价格在 750 附近。（来源：CTP snapshot API；UnknownWire）
+
+## 二、基本面分析
+### 供给端
+暂无可核验数据。（来源：CTP snapshot API）
+### 需求端
+暂无可核验数据。（来源：CTP snapshot API）
+### 库存与持仓
+持仓 100，成交 200。（来源：CTP snapshot API）
+
+## 三、国际市场
+外盘波动温和。（来源：CTP snapshot API）
+
+## 四、近期重要资讯
+- 资讯 1（来源：CTP snapshot API）
+
+## 五、核心驱动因子
+1. 因子一
+2. 因子二
+
+## 六、风险提示
+1. 美元波动
+2. 需求不及预期
+
+本报告由AI自动生成，仅供参考，不构成投资建议。
+""".strip(),
+            "raw_data": {"sources": ["CTP snapshot API"]},
+            "review_round": 0,
+            "review_history": [],
+        }
+        result = await review_node(state, runtime)
+        self.assertFalse(result["review_result"]["passed"])
+        self.assertTrue(
+            any("UnknownWire" in item for item in result["review_result"]["blocking_issues"])
+        )
+
     async def test_yahoo_market_source_is_accepted_when_external_facts_exist(self):
         runtime = build_runtime()
         state = {
