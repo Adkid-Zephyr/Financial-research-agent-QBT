@@ -289,6 +289,12 @@ def _build_deterministic_report(
     factor_view_1 = _safe_list_item(key_factor_views, 0, reasons[0] if reasons else view_reason)
     factor_view_2 = _safe_list_item(key_factor_views, 1, _spread_comment(spread_value))
     factor_view_3 = _safe_list_item(key_factor_views, 2, "交易活跃度说明当前盘面并非无量状态。")
+    factor_view_4 = _safe_list_item(
+        key_factor_views,
+        3,
+        "研究边界需要被明确写出，不能把数据缺口伪装成结论。",
+    )
+    risk_1 = _safe_list_item(risk_views, 0, "旧快照不能替代今日事实。")
     risk_2 = _safe_list_item(
         risk_views,
         1,
@@ -331,9 +337,10 @@ def _build_deterministic_report(
 1. **盘面方向**：{factor_view_1}
 2. **期限结构**：{factor_view_2} 当前近月-远月价差为 {spread}。
 3. **交易活跃度**：{factor_view_3} 当前持仓量 {open_interest}、成交量 {volume}。
+4. **研究边界**：{factor_view_4}
 
 ## 六、风险提示
-1. 若实时快照与目标日期不一致，旧快照不能替代今日事实。
+1. {risk_1}
 2. {risk_2}
 3. {risk_3}
 
@@ -378,6 +385,8 @@ def _build_deterministic_report(
         factor_view_1=factor_view_1,
         factor_view_2=factor_view_2,
         factor_view_3=factor_view_3,
+        factor_view_4=factor_view_4,
+        risk_1=risk_1,
         risk_2=risk_2,
         risk_3=risk_3,
         main_factor=main_factor,

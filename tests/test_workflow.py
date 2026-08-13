@@ -472,7 +472,8 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertEqual(len(fake_llm.analysis_contexts), 1)
         self.assertIn("analysis_brief", final_state.raw_data)
-        self.assertIn("盘面定价偏强", final_state.report_draft)
+        self.assertIn("未拿到与目标日期一致的实时结构化数字", final_state.report_draft)
+        self.assertNotIn("**核心观点**：盘面定价偏强", final_state.report_draft)
         self.assertIn("CTP snapshot API", final_state.report_draft)
 
     def test_request_context_can_override_report_render_mode_for_single_run(self):

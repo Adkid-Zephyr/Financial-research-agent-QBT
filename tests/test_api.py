@@ -104,7 +104,7 @@ class ApiTests(unittest.TestCase):
     def test_frontend_root_page(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("问一句，得到一份有数据边界的期货日报", response.text)
+        self.assertIn("你想研究什么？", response.text)
         self.assertIn("contract-select", response.text)
         self.assertIn("/admin", response.text)
         self.assertEqual(response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
